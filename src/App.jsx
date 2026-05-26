@@ -22,8 +22,14 @@ const playSound = (frequency, duration, volume = 0.3) => {
   oscillator.stop(audioContext.currentTime + duration);
 };
 
-const startSound = (volume) => playSound(700, 0.15, volume);
-const beep = (volume) => playSound(1000, 0.08, volume);
+const startSound = () => playSound(700, 0.15);
+const beep = () => playSound(1000, 0.08);
+
+const defaultPresets = [
+  { name: "英単語", seconds: 7 },
+  { name: "標準", seconds: 30 },
+  { name: "じっくり", seconds: 90 },
+];
 
 function App() {
   const [startTime, setStartTime] = useState(30);
@@ -37,13 +43,36 @@ function App() {
   const [remainingOnPause, setRemainingOnPause] = useState(30);
   const [remainingPrecise, setRemainingPrecise] = useState(30);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [volume, setVolume] = useState(0.3);
+
+  const [presets, setPresets] = useState(() => {
+    try {
+      const saved = localStorage.getItem("qTimerPresets");
+      return saved ? JSON.parse(saved) : defaultPresets;
+    } catch {
+      return defaultPresets;
+    }
+  });
 
   const startAtRef = useRef(null);
   const animationRef = useRef(null);
   const lastBeepSecondRef = useRef(null);
   const soundOnRef = useRef(soundOn);
   const wakeLockRef = useRef(null);
+
+  const formatTime = (seconds) => {
+    const min = Math.floor(seconds / 60);
+    const sec = seconds % 60;
+
+    return `${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+  };
+
+  const applyTime = (newTime) => {
+    setStartTime(newTime);
+    setTime(newTime);
+    setProgress(100);
+    setRemainingOnPause(newTime);
+    setRemainingPrecise(newTime);
+  };
 
   const requestWakeLock = async () => {
     try {
@@ -61,6 +90,10 @@ function App() {
       wakeLockRef.current = null;
     }
   };
+
+  useEffect(() => {
+    localStorage.setItem("qTimerPresets", JSON.stringify(presets));
+  }, [presets]);
 
   useEffect(() => {
     soundOnRef.current = soundOn;
@@ -96,12 +129,12 @@ function App() {
         displayTime > 0 &&
         displayTime !== lastBeepSecondRef.current
       ) {
-        beep(volume);
+        beep();
         lastBeepSecondRef.current = displayTime;
       }
 
       if (remaining <= 0) {
-        if (soundOnRef.current) startSound(volume);
+        if (soundOnRef.current) startSound();
 
         setQuestion((q) => q + 1);
         setRemainingOnPause(startTime);
@@ -115,7 +148,7 @@ function App() {
     animationRef.current = requestAnimationFrame(update);
 
     return () => cancelAnimationFrame(animationRef.current);
-  }, [running, startTime, remainingOnPause, volume]);
+  }, [running, startTime, remainingOnPause]);
 
   useEffect(() => {
     if (time <= 5 && time > 0) {
@@ -180,6 +213,24 @@ function App() {
             }
           }
 
+          @keyframes pulse {
+            0% {
+              transform: scale(1);
+            }
+
+            50% {
+              transform: scale(1.015);
+            }
+
+            100% {
+              transform: scale(1);
+            }
+          }
+
+          .danger-ring {
+            animation: pulse 1s infinite;
+          }
+
           .app-root {
             min-height: 100vh;
             display: flex;
@@ -214,6 +265,8 @@ function App() {
             align-items: center;
             margin-bottom: 30px;
             flex-shrink: 0;
+            transition: transform 0.08s linear;
+            will-change: transform;
           }
 
           .timer-inner {
@@ -237,6 +290,15 @@ function App() {
             align-items: center;
           }
 
+          .preset-list {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 320px;
+          }
+
           .main-buttons {
             display: flex;
             gap: 15px;
@@ -255,7 +317,7 @@ function App() {
               left: 20px;
               font-size: 22px !important;
               opacity: 0.7;
-letter-spacing: 2px;
+              letter-spacing: 2px;
               margin: 0;
             }
 
@@ -280,18 +342,19 @@ letter-spacing: 2px;
               font-size: 52px;
             }
 
-            .controls-panel select {
+            .controls-panel input {
               font-size: 16px !important;
               padding: 8px !important;
               margin-bottom: 12px !important;
             }
 
-            .sound-button {
-              margin-bottom: 12px !important;
+            .preset-list {
+              margin-bottom: 10px !important;
+              max-width: 260px;
             }
 
-            .volume-box {
-              margin-bottom: 10px !important;
+            .sound-button {
+              margin-bottom: 12px !important;
             }
 
             .main-buttons {
@@ -305,19 +368,19 @@ letter-spacing: 2px;
             }
 
             .paused-panel {
-  padding: 18px 22px !important;
-  gap: 14px !important;
-}
+              padding: 18px 22px !important;
+              gap: 14px !important;
+            }
 
-.paused-panel button {
-  font-size: 18px !important;
-  padding: 10px 20px !important;
-}
+            .paused-panel button {
+              font-size: 18px !important;
+              padding: 10px 20px !important;
+            }
 
-.reset-dialog {
-  padding: 22px !important;
-  width: 260px !important;
-}
+            .reset-dialog {
+              padding: 22px !important;
+              width: 260px !important;
+            }
           }
         `}
       </style>
@@ -336,7 +399,7 @@ letter-spacing: 2px;
 
         <div className="main-layout">
           <div
-            className="timer-circle"
+            className={`timer-circle ${time <= 5 ? "danger-ring" : ""}`}
             style={{
               background: `conic-gradient(
                 from 0deg,
@@ -352,46 +415,101 @@ letter-spacing: 2px;
                   color: time <= 5 ? "red" : "white",
                 }}
               >
-                {`00:${String(time).padStart(2, "0")}`}
+                {formatTime(time)}
               </div>
             </div>
           </div>
 
           <div className="controls-panel">
-            <select
+            <input
+              type="number"
+              min="1"
+              max="999"
               value={startTime}
               disabled={running}
               onChange={(e) => {
                 const newTime = Number(e.target.value);
-                setStartTime(newTime);
-                setTime(newTime);
-                setProgress(100);
-                setRemainingOnPause(newTime);
-                setRemainingPrecise(newTime);
+
+                if (!newTime || newTime < 1) return;
+
+                applyTime(newTime);
               }}
               style={{
-                fontSize: "20px",
-                padding: "10px",
-                marginBottom: "20px",
+                fontSize: "18px",
+                padding: "8px",
+                marginBottom: "12px",
                 borderRadius: "10px",
+                width: "80px",
+                textAlign: "center",
                 opacity: running ? 0.5 : 1,
-                cursor: running ? "not-allowed" : "pointer",
+                cursor: running ? "not-allowed" : "text",
                 backgroundColor: running ? "#444" : "white",
                 color: running ? "#999" : "black",
+                border: "none",
+              }}
+            />
+
+            <div className="preset-list">
+              {presets.map((preset, index) => (
+                <button
+                  key={`${preset.name}-${index}`}
+                  disabled={running}
+                  onClick={() => {
+                    applyTime(preset.seconds);
+                  }}
+                  style={{
+                    fontSize: "14px",
+                    padding: "7px 12px",
+                    backgroundColor:
+                      startTime === preset.seconds ? "#22c55e" : "#333",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "999px",
+                    opacity: running ? 0.5 : 1,
+                    cursor: running ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {preset.name}
+                </button>
+              ))}
+            </div>
+
+            <button
+              disabled={running}
+              onClick={() => {
+                const name = prompt("セット名を入力してください");
+
+                if (!name) return;
+
+                setPresets((prev) => [
+                  ...prev,
+                  {
+                    name,
+                    seconds: startTime,
+                  },
+                ]);
+              }}
+              style={{
+                fontSize: "14px",
+                padding: "7px 14px",
+                marginBottom: "20px",
+                backgroundColor: "#2563eb",
+                color: "white",
+                border: "none",
+                borderRadius: "999px",
+                opacity: running ? 0.5 : 1,
+                cursor: running ? "not-allowed" : "pointer",
               }}
             >
-              <option value={15}>15秒</option>
-              <option value={30}>30秒</option>
-              <option value={60}>60秒</option>
-              <option value={90}>90秒</option>
-            </select>
+              ＋ 現在の秒数を保存
+            </button>
 
             <button
               className="sound-button"
               onClick={() => {
                 setSoundOn((v) => {
                   const next = !v;
-                  if (next) startSound(volume);
+                  if (next) startSound();
                   return next;
                 });
               }}
@@ -409,38 +527,6 @@ letter-spacing: 2px;
               {soundOn ? "🔊 ON" : "🔇 OFF"}
             </button>
 
-            <div
-              className="volume-box"
-              style={{
-                width: "220px",
-                marginBottom: "20px",
-              }}
-            >
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                value={volume}
-                onChange={(e) => setVolume(Number(e.target.value))}
-                style={{
-                  width: "100%",
-                  cursor: "pointer",
-                }}
-              />
-
-              <div
-                style={{
-                  textAlign: "center",
-                  marginTop: "6px",
-                  fontSize: "14px",
-                  color: "#aaa",
-                }}
-              >
-                音量 {Math.round(volume * 100)}%
-              </div>
-            </div>
-
             <div className="main-buttons">
               <button
                 disabled={running}
@@ -448,7 +534,7 @@ letter-spacing: 2px;
                   const isFreshStart =
                     remainingPrecise <= 0 || remainingPrecise >= startTime;
 
-                  if (soundOn && isFreshStart) startSound(volume);
+                  if (soundOn && isFreshStart) startSound();
 
                   if (isFreshStart) {
                     setRemainingOnPause(startTime);
@@ -550,9 +636,8 @@ letter-spacing: 2px;
               pointerEvents: "auto",
             }}
           >
-            <div //PAUSE用の黒いカードdiv
+            <div
               className="paused-panel"
-              
               style={{
                 display: "flex",
                 gap: "20px",
@@ -617,9 +702,9 @@ letter-spacing: 2px;
             }}
           >
             <div
-  className="reset-dialog"
-  onClick={(e) => e.stopPropagation()}
-  style={{
+              className="reset-dialog"
+              onClick={(e) => e.stopPropagation()}
+              style={{
                 backgroundColor: "#1f1f1f",
                 animation: "modalPop 0.18s ease",
                 padding: "28px",
