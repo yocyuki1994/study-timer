@@ -33,6 +33,10 @@ const defaultPresets = [
 
 function App() {
   const [startTime, setStartTime] = useState(30);
+  const [startTimeInput, setStartTimeInput] = useState("30");
+  const [cooldownTime, setCooldownTime] = useState(5);
+  const [cooldownTimeInput, setCooldownTimeInput] = useState("5");
+
   const [time, setTime] = useState(30);
   const [progress, setProgress] = useState(100);
   const [question, setQuestion] = useState(1);
@@ -43,6 +47,7 @@ function App() {
   const [remainingOnPause, setRemainingOnPause] = useState(30);
   const [remainingPrecise, setRemainingPrecise] = useState(30);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [isCooldown, setIsCooldown] = useState(false);
 
   const [presets, setPresets] = useState(() => {
     try {
@@ -59,15 +64,20 @@ function App() {
   const soundOnRef = useRef(soundOn);
   const wakeLockRef = useRef(null);
 
+  const hasValidStartTime = startTimeInput !== "" && startTime > 0;
+
   const formatTime = (seconds) => {
-    const min = Math.floor(seconds / 60);
-    const sec = seconds % 60;
+    const safeSeconds = Math.max(0, Number(seconds) || 0);
+    const min = Math.floor(safeSeconds / 60);
+    const sec = safeSeconds % 60;
 
     return `${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
   };
 
-  const applyTime = (newTime) => {
+  const applyMainTime = (newTime) => {
     setStartTime(newTime);
+    setStartTimeInput(String(newTime));
+    setIsCooldown(false);
     setTime(newTime);
     setProgress(100);
     setRemainingOnPause(newTime);
@@ -108,15 +118,18 @@ function App() {
   useEffect(() => {
     if (!running) return;
 
+    const currentDuration = isCooldown ? cooldownTime : startTime;
+
     startAtRef.current =
-      performance.now() - (startTime - remainingOnPause) * 1000;
+      performance.now() - (currentDuration - remainingOnPause) * 1000;
 
     lastBeepSecondRef.current = null;
 
     const update = () => {
+      const duration = isCooldown ? cooldownTime : startTime;
       const elapsed = (performance.now() - startAtRef.current) / 1000;
-      const remaining = Math.max(0, startTime - elapsed);
-      const percent = Math.max(0, (remaining / startTime) * 100);
+      const remaining = Math.max(0, duration - elapsed);
+      const percent = duration > 0 ? Math.max(0, (remaining / duration) * 100) : 0;
       const displayTime = Math.ceil(remaining);
 
       setRemainingPrecise(remaining);
@@ -124,6 +137,7 @@ function App() {
       setTime(displayTime);
 
       if (
+        !isCooldown &&
         soundOnRef.current &&
         displayTime <= 5 &&
         displayTime > 0 &&
@@ -134,11 +148,27 @@ function App() {
       }
 
       if (remaining <= 0) {
-        if (soundOnRef.current) startSound();
+        if (!isCooldown && cooldownTime > 0) {
+          if (soundOnRef.current) startSound();
 
-        setQuestion((q) => q + 1);
-        setRemainingOnPause(startTime);
-        startAtRef.current = performance.now();
+          setIsCooldown(true);
+          setRemainingOnPause(cooldownTime);
+          setRemainingPrecise(cooldownTime);
+          setTime(cooldownTime);
+          setProgress(100);
+          startAtRef.current = performance.now();
+        } else {
+          if (soundOnRef.current) startSound();
+
+          setQuestion((q) => q + 1);
+          setIsCooldown(false);
+          setRemainingOnPause(startTime);
+          setRemainingPrecise(startTime);
+          setTime(startTime);
+          setProgress(100);
+          startAtRef.current = performance.now();
+        }
+
         lastBeepSecondRef.current = null;
       }
 
@@ -148,10 +178,10 @@ function App() {
     animationRef.current = requestAnimationFrame(update);
 
     return () => cancelAnimationFrame(animationRef.current);
-  }, [running, startTime, remainingOnPause]);
+  }, [running, startTime, cooldownTime, remainingOnPause, isCooldown]);
 
   useEffect(() => {
-    if (time <= 5 && time > 0) {
+    if (!isCooldown && time <= 5 && time > 0) {
       setFlash(true);
 
       const timeout = setTimeout(() => {
@@ -160,10 +190,11 @@ function App() {
 
       return () => clearTimeout(timeout);
     }
-  }, [time]);
+  }, [time, isCooldown]);
 
   const resetTimer = () => {
     setRunning(false);
+    setIsCooldown(false);
     setTime(startTime);
     setProgress(100);
     setQuestion(1);
@@ -257,21 +288,21 @@ function App() {
           }
 
           .timer-circle {
-            width: 320px;
-            height: 320px;
+            width: 270px;
+            height: 270px;
             border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
-            margin-bottom: 30px;
+            margin-bottom: 18px;
             flex-shrink: 0;
             transition: transform 0.08s linear;
             will-change: transform;
           }
 
           .timer-inner {
-            width: 270px;
-            height: 270px;
+            width: 225px;
+            height: 225px;
             border-radius: 50%;
             background-color: black;
             display: flex;
@@ -280,7 +311,7 @@ function App() {
           }
 
           .timer-text {
-            font-size: 70px;
+            font-size: 58px;
             font-weight: bold;
           }
 
@@ -288,6 +319,24 @@ function App() {
             display: flex;
             flex-direction: column;
             align-items: center;
+          }
+
+          .time-inputs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+          }
+
+          .input-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+          }
+
+          .input-label {
+            font-size: 12px;
+            color: #aaa;
           }
 
           .preset-list {
@@ -302,7 +351,7 @@ function App() {
           .main-buttons {
             display: flex;
             gap: 15px;
-            margin-top: 20px;
+            margin-top: 12px;
           }
 
           @media (orientation: landscape) and (max-height: 500px) {
@@ -345,7 +394,10 @@ function App() {
             .controls-panel input {
               font-size: 16px !important;
               padding: 8px !important;
-              margin-bottom: 12px !important;
+            }
+
+            .time-inputs {
+              margin-bottom: 10px !important;
             }
 
             .preset-list {
@@ -387,24 +439,29 @@ function App() {
 
       <div className={`app-root ${flash ? "flash" : ""}`}>
         <h1
-          key={question}
+          key={isCooldown ? "cooldown" : question}
           className="question-title"
           style={{
             fontSize: "40px",
             animation: "pop 0.4s ease",
+            color: isCooldown ? "#60a5fa" : "white",
           }}
         >
-          問題 {question}
+          {isCooldown ? "休憩" : `問題 ${question}`}
         </h1>
 
         <div className="main-layout">
           <div
-            className={`timer-circle ${time <= 5 ? "danger-ring" : ""}`}
+            className={`timer-circle ${
+              !isCooldown && time <= 5 ? "danger-ring" : ""
+            }`}
             style={{
               background: `conic-gradient(
                 from 0deg,
                 #333 0% ${100 - progress}%,
-                ${time <= 5 ? "red" : "lime"} ${100 - progress}% 100%
+                ${
+                  isCooldown ? "#60a5fa" : time <= 5 ? "red" : "lime"
+                } ${100 - progress}% 100%
               )`,
             }}
           >
@@ -412,7 +469,7 @@ function App() {
               <div
                 className="timer-text"
                 style={{
-                  color: time <= 5 ? "red" : "white",
+                  color: isCooldown ? "#60a5fa" : time <= 5 ? "red" : "white",
                 }}
               >
                 {formatTime(time)}
@@ -421,33 +478,88 @@ function App() {
           </div>
 
           <div className="controls-panel">
-            <input
-              type="number"
-              min="1"
-              max="999"
-              value={startTime}
-              disabled={running}
-              onChange={(e) => {
-                const newTime = Number(e.target.value);
+            <div className="time-inputs">
+              <div className="input-block">
+                <div className="input-label">時間</div>
+                <input
+                  type="number"
+                  min="1"
+                  max="999"
+                  value={startTimeInput}
+                  disabled={running}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setStartTimeInput(value);
 
-                if (!newTime || newTime < 1) return;
+                    if (value === "") {
+                      setStartTime(0);
+                      setTime(0);
+                      setProgress(100);
+                      setRemainingOnPause(0);
+                      setRemainingPrecise(0);
+                      setIsCooldown(false);
+                      return;
+                    }
 
-                applyTime(newTime);
-              }}
-              style={{
-                fontSize: "18px",
-                padding: "8px",
-                marginBottom: "12px",
-                borderRadius: "10px",
-                width: "80px",
-                textAlign: "center",
-                opacity: running ? 0.5 : 1,
-                cursor: running ? "not-allowed" : "text",
-                backgroundColor: running ? "#444" : "white",
-                color: running ? "#999" : "black",
-                border: "none",
-              }}
-            />
+                    const newTime = Number(value);
+
+                    if (newTime < 1) return;
+
+                    applyMainTime(newTime);
+                  }}
+                  style={{
+                    fontSize: "18px",
+                    padding: "8px",
+                    borderRadius: "10px",
+                    width: "80px",
+                    textAlign: "center",
+                    opacity: running ? 0.5 : 1,
+                    cursor: running ? "not-allowed" : "text",
+                    backgroundColor: running ? "#444" : "white",
+                    color: running ? "#999" : "black",
+                    border: "none",
+                  }}
+                />
+              </div>
+
+              <div className="input-block">
+                <div className="input-label">休憩</div>
+                <input
+                  type="number"
+                  min="0"
+                  max="999"
+                  value={cooldownTimeInput}
+                  disabled={running}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setCooldownTimeInput(value);
+
+                    if (value === "") {
+                      setCooldownTime(0);
+                      return;
+                    }
+
+                    const newTime = Number(value);
+
+                    if (newTime < 0) return;
+
+                    setCooldownTime(newTime);
+                  }}
+                  style={{
+                    fontSize: "18px",
+                    padding: "8px",
+                    borderRadius: "10px",
+                    width: "80px",
+                    textAlign: "center",
+                    opacity: running ? 0.5 : 1,
+                    cursor: running ? "not-allowed" : "text",
+                    backgroundColor: running ? "#444" : "white",
+                    color: running ? "#999" : "black",
+                    border: "none",
+                  }}
+                />
+              </div>
+            </div>
 
             <div className="preset-list">
               {presets.map((preset, index) => (
@@ -455,7 +567,7 @@ function App() {
                   key={`${preset.name}-${index}`}
                   disabled={running}
                   onClick={() => {
-                    applyTime(preset.seconds);
+                    applyMainTime(preset.seconds);
                   }}
                   style={{
                     fontSize: "14px",
@@ -475,7 +587,7 @@ function App() {
             </div>
 
             <button
-              disabled={running}
+              disabled={running || !hasValidStartTime}
               onClick={() => {
                 const name = prompt("セット名を入力してください");
 
@@ -497,8 +609,9 @@ function App() {
                 color: "white",
                 border: "none",
                 borderRadius: "999px",
-                opacity: running ? 0.5 : 1,
-                cursor: running ? "not-allowed" : "pointer",
+                opacity: running || !hasValidStartTime ? 0.5 : 1,
+                cursor:
+                  running || !hasValidStartTime ? "not-allowed" : "pointer",
               }}
             >
               ＋ 現在の秒数を保存
@@ -529,15 +642,21 @@ function App() {
 
             <div className="main-buttons">
               <button
-                disabled={running}
+                disabled={running || !hasValidStartTime}
                 onClick={() => {
+                  const currentDuration = isCooldown
+                    ? cooldownTime
+                    : startTime;
+
                   const isFreshStart =
-                    remainingPrecise <= 0 || remainingPrecise >= startTime;
+                    remainingPrecise <= 0 ||
+                    remainingPrecise >= currentDuration;
 
                   if (soundOn && isFreshStart) startSound();
 
                   if (isFreshStart) {
-                    setRemainingOnPause(startTime);
+                    setRemainingOnPause(currentDuration);
+                    setTime(currentDuration);
                   } else {
                     setRemainingOnPause(remainingPrecise);
                   }
@@ -552,8 +671,9 @@ function App() {
                   color: "white",
                   border: "none",
                   borderRadius: "12px",
-                  cursor: "pointer",
-                  opacity: running ? 0.5 : 1,
+                  cursor:
+                    running || !hasValidStartTime ? "not-allowed" : "pointer",
+                  opacity: running || !hasValidStartTime ? 0.5 : 1,
                 }}
               >
                 ▶ START
@@ -620,70 +740,73 @@ function App() {
           </div>
         </div>
 
-        {!running && time !== startTime && (
-          <div
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              backgroundColor: "rgba(0,0,0,0.35)",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              zIndex: 999,
-              pointerEvents: "auto",
-            }}
-          >
+        {!running &&
+          hasValidStartTime &&
+          remainingPrecise > 0 &&
+          time !== startTime && (
             <div
-              className="paused-panel"
               style={{
+                position: "fixed",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                backgroundColor: "rgba(0,0,0,0.35)",
                 display: "flex",
-                gap: "20px",
-                backgroundColor: "rgba(30,30,30,0.95)",
-                padding: "24px 28px",
-                borderRadius: "24px",
-                boxShadow: "0 10px 40px rgba(0,0,0,0.5)",
-                backdropFilter: "blur(8px)",
-                animation: "modalPop 0.18s ease",
+                justifyContent: "center",
+                alignItems: "center",
+                zIndex: 999,
+                pointerEvents: "auto",
               }}
             >
-              <button
-                onClick={() => {
-                  setRunning(true);
-                  requestWakeLock();
-                }}
+              <div
+                className="paused-panel"
                 style={{
-                  fontSize: "24px",
-                  padding: "14px 32px",
-                  backgroundColor: "#22c55e",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "999px",
-                  cursor: "pointer",
+                  display: "flex",
+                  gap: "20px",
+                  backgroundColor: "rgba(30,30,30,0.95)",
+                  padding: "24px 28px",
+                  borderRadius: "24px",
+                  boxShadow: "0 10px 40px rgba(0,0,0,0.5)",
+                  backdropFilter: "blur(8px)",
+                  animation: "modalPop 0.18s ease",
                 }}
               >
-                ▶ 再開
-              </button>
+                <button
+                  onClick={() => {
+                    setRunning(true);
+                    requestWakeLock();
+                  }}
+                  style={{
+                    fontSize: "24px",
+                    padding: "14px 32px",
+                    backgroundColor: "#22c55e",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "999px",
+                    cursor: "pointer",
+                  }}
+                >
+                  ▶ 再開
+                </button>
 
-              <button
-                onClick={() => setShowResetConfirm(true)}
-                style={{
-                  fontSize: "24px",
-                  padding: "14px 32px",
-                  backgroundColor: "#666",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "999px",
-                  cursor: "pointer",
-                }}
-              >
-                ↺ リセット
-              </button>
+                <button
+                  onClick={() => setShowResetConfirm(true)}
+                  style={{
+                    fontSize: "24px",
+                    padding: "14px 32px",
+                    backgroundColor: "#666",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "999px",
+                    cursor: "pointer",
+                  }}
+                >
+                  ↺ リセット
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {showResetConfirm && (
           <div
