@@ -335,7 +335,7 @@ function App() {
           }
 
           .input-label {
-            font-size: 12px;
+            font-size: 10px;
             color: #aaa;
           }
 
@@ -508,10 +508,10 @@ function App() {
                     applyMainTime(newTime);
                   }}
                   style={{
-                    fontSize: "18px",
-                    padding: "8px",
+                    fontSize: "16px",
+                    padding: "6px",
                     borderRadius: "10px",
-                    width: "80px",
+                    width: "64px",
                     textAlign: "center",
                     opacity: running ? 0.5 : 1,
                     cursor: running ? "not-allowed" : "text",
@@ -546,10 +546,10 @@ function App() {
                     setCooldownTime(newTime);
                   }}
                   style={{
-                    fontSize: "18px",
-                    padding: "8px",
+                    fontSize: "16px",
+                    padding: "6px",
                     borderRadius: "10px",
-                    width: "80px",
+                    width: "64px",
                     textAlign: "center",
                     opacity: running ? 0.5 : 1,
                     cursor: running ? "not-allowed" : "text",
