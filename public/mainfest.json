@@ -1,6 +1,6 @@
 {
-  "name": "学習タイマー",
-  "short_name": "学習タイマー",
+  "name": "Q Timer",
+  "short_name": "Q Timer",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#000000",
@@ -8,7 +8,7 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/icon.png",
+      "src": "/icon-v2.png?v=2",
       "sizes": "512x512",
       "type": "image/png"
     }
