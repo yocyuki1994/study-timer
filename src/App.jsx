@@ -7,13 +7,11 @@ const playSound = (frequency, duration, volume = 0.3) => {
   const gainNode = audioContext.createGain();
 
   gainNode.gain.value = volume;
-
   oscillator.connect(gainNode);
   gainNode.connect(audioContext.destination);
 
   oscillator.frequency.value = frequency;
   oscillator.type = "sine";
-
   oscillator.start();
 
   gainNode.gain.exponentialRampToValueAtTime(
@@ -149,15 +147,24 @@ function App() {
         {`
           @keyframes pop {
             0% {
-              transform: scale(0.7);
+              transform: scale(0.5);
               opacity: 0;
+              color: #22c55e;
+              text-shadow: 0 0 30px #22c55e;
             }
-            70% {
-              transform: scale(1.1);
+
+            50% {
+              transform: scale(1.25);
+              opacity: 1;
+              color: #ffffff;
+              text-shadow: 0 0 40px #22c55e;
             }
+
             100% {
               transform: scale(1);
               opacity: 1;
+              color: #ffffff;
+              text-shadow: none;
             }
           }
 
@@ -166,255 +173,365 @@ function App() {
               transform: scale(0.9);
               opacity: 0;
             }
+
             100% {
               transform: scale(1);
               opacity: 1;
             }
           }
+
+          .app-root {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-family: sans-serif;
+            background-color: black;
+            color: white;
+            padding: 20px;
+            padding-bottom: calc(20px + env(safe-area-inset-bottom));
+            box-sizing: border-box;
+            transition: background-color 0.15s;
+          }
+
+          .app-root.flash {
+            background-color: #660000;
+          }
+
+          .main-layout {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+          }
+
+          .timer-circle {
+            width: 320px;
+            height: 320px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-shrink: 0;
+          }
+
+          .timer-inner {
+            width: 270px;
+            height: 270px;
+            border-radius: 50%;
+            background-color: black;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+          }
+
+          .timer-text {
+            font-size: 70px;
+            font-weight: bold;
+          }
+
+          .controls-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+          }
+
+          .main-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+          }
+
+          @media (orientation: landscape) and (max-height: 500px) {
+            .app-root {
+              padding: 12px 24px;
+              justify-content: center;
+            }
+
+            .question-title {
+              position: fixed;
+              top: 8px;
+              left: 20px;
+              font-size: 22px !important;
+              opacity: 0.7;
+letter-spacing: 2px;
+              margin: 0;
+            }
+
+            .main-layout {
+              flex-direction: row;
+              gap: 36px;
+              align-items: center;
+            }
+
+            .timer-circle {
+              width: 240px;
+              height: 240px;
+              margin-bottom: 0;
+            }
+
+            .timer-inner {
+              width: 200px;
+              height: 200px;
+            }
+
+            .timer-text {
+              font-size: 52px;
+            }
+
+            .controls-panel select {
+              font-size: 16px !important;
+              padding: 8px !important;
+              margin-bottom: 12px !important;
+            }
+
+            .sound-button {
+              margin-bottom: 12px !important;
+            }
+
+            .volume-box {
+              margin-bottom: 10px !important;
+            }
+
+            .main-buttons {
+              margin-top: 10px;
+              gap: 10px;
+            }
+
+            .main-buttons button {
+              font-size: 16px !important;
+              padding: 9px 14px !important;
+            }
+
+            .paused-panel {
+  padding: 18px 22px !important;
+  gap: 14px !important;
+}
+
+.paused-panel button {
+  font-size: 18px !important;
+  padding: 10px 20px !important;
+}
+
+.reset-dialog {
+  padding: 22px !important;
+  width: 260px !important;
+}
+          }
         `}
       </style>
 
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
-          fontFamily: "sans-serif",
-          backgroundColor: flash ? "#660000" : "black",
-          color: "white",
-          padding: "20px",
-          paddingBottom: "calc(20px + env(safe-area-inset-bottom))",
-          boxSizing: "border-box",
-          transition: "background-color 0.15s",
-        }}
-      >
+      <div className={`app-root ${flash ? "flash" : ""}`}>
         <h1
           key={question}
+          className="question-title"
           style={{
             fontSize: "40px",
-            animation: "pop 0.25s ease",
+            animation: "pop 0.4s ease",
           }}
         >
           問題 {question}
         </h1>
 
-        <select
-          value={startTime}
-          disabled={running}
-          onChange={(e) => {
-            const newTime = Number(e.target.value);
-            setStartTime(newTime);
-            setTime(newTime);
-            setProgress(100);
-            setRemainingOnPause(newTime);
-            setRemainingPrecise(newTime);
-          }}
-          style={{
-            fontSize: "20px",
-            padding: "10px",
-            marginBottom: "20px",
-            borderRadius: "10px",
-            opacity: running ? 0.5 : 1,
-            cursor: running ? "not-allowed" : "pointer",
-            backgroundColor: running ? "#444" : "white",
-            color: running ? "#999" : "black",
-          }}
-        >
-          <option value={15}>15秒</option>
-          <option value={30}>30秒</option>
-          <option value={60}>60秒</option>
-          <option value={90}>90秒</option>
-        </select>
-
-        <div
-          style={{
-            width: "320px",
-            height: "320px",
-            borderRadius: "50%",
-            background: `conic-gradient(
-              from 0deg,
-              #333 0% ${100 - progress}%,
-              ${time <= 5 ? "red" : "lime"} ${100 - progress}% 100%
-            )`,
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            marginBottom: "30px",
-          }}
-        >
+        <div className="main-layout">
           <div
+            className="timer-circle"
             style={{
-              width: "270px",
-              height: "270px",
-              borderRadius: "50%",
-              backgroundColor: "black",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
+              background: `conic-gradient(
+                from 0deg,
+                #333 0% ${100 - progress}%,
+                ${time <= 5 ? "red" : "lime"} ${100 - progress}% 100%
+              )`,
             }}
           >
-            <div
-              style={{
-                fontSize: "70px",
-                fontWeight: "bold",
-                color: time <= 5 ? "red" : "white",
-              }}
-            >
-              {`00:${String(time).padStart(2, "0")}`}
+            <div className="timer-inner">
+              <div
+                className="timer-text"
+                style={{
+                  color: time <= 5 ? "red" : "white",
+                }}
+              >
+                {`00:${String(time).padStart(2, "0")}`}
+              </div>
             </div>
           </div>
-        </div>
 
-        <button
-          onClick={() => {
-            setSoundOn((v) => {
-              const next = !v;
-              if (next) startSound(volume);
-              return next;
-            });
-          }}
-          style={{
-            fontSize: "18px",
-            padding: "8px 20px",
-            marginBottom: "20px",
-            backgroundColor: soundOn ? "#22c55e" : "#555",
-            color: "white",
-            border: "none",
-            borderRadius: "999px",
-            cursor: "pointer",
-          }}
-        >
-          {soundOn ? "🔊 ON" : "🔇 OFF"}
-        </button>
+          <div className="controls-panel">
+            <select
+              value={startTime}
+              disabled={running}
+              onChange={(e) => {
+                const newTime = Number(e.target.value);
+                setStartTime(newTime);
+                setTime(newTime);
+                setProgress(100);
+                setRemainingOnPause(newTime);
+                setRemainingPrecise(newTime);
+              }}
+              style={{
+                fontSize: "20px",
+                padding: "10px",
+                marginBottom: "20px",
+                borderRadius: "10px",
+                opacity: running ? 0.5 : 1,
+                cursor: running ? "not-allowed" : "pointer",
+                backgroundColor: running ? "#444" : "white",
+                color: running ? "#999" : "black",
+              }}
+            >
+              <option value={15}>15秒</option>
+              <option value={30}>30秒</option>
+              <option value={60}>60秒</option>
+              <option value={90}>90秒</option>
+            </select>
 
-        <div
-          style={{
-            width: "220px",
-            marginBottom: "20px",
-          }}
-        >
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value={volume}
-            onChange={(e) => setVolume(Number(e.target.value))}
-            style={{
-              width: "100%",
-              cursor: "pointer",
-            }}
-          />
+            <button
+              className="sound-button"
+              onClick={() => {
+                setSoundOn((v) => {
+                  const next = !v;
+                  if (next) startSound(volume);
+                  return next;
+                });
+              }}
+              style={{
+                fontSize: "18px",
+                padding: "8px 20px",
+                marginBottom: "20px",
+                backgroundColor: soundOn ? "#22c55e" : "#555",
+                color: "white",
+                border: "none",
+                borderRadius: "999px",
+                cursor: "pointer",
+              }}
+            >
+              {soundOn ? "🔊 ON" : "🔇 OFF"}
+            </button>
 
-          <div
-            style={{
-              textAlign: "center",
-              marginTop: "6px",
-              fontSize: "14px",
-              color: "#aaa",
-            }}
-          >
-            音量 {Math.round(volume * 100)}%
+            <div
+              className="volume-box"
+              style={{
+                width: "220px",
+                marginBottom: "20px",
+              }}
+            >
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={volume}
+                onChange={(e) => setVolume(Number(e.target.value))}
+                style={{
+                  width: "100%",
+                  cursor: "pointer",
+                }}
+              />
+
+              <div
+                style={{
+                  textAlign: "center",
+                  marginTop: "6px",
+                  fontSize: "14px",
+                  color: "#aaa",
+                }}
+              >
+                音量 {Math.round(volume * 100)}%
+              </div>
+            </div>
+
+            <div className="main-buttons">
+              <button
+                disabled={running}
+                onClick={() => {
+                  const isFreshStart =
+                    remainingPrecise <= 0 || remainingPrecise >= startTime;
+
+                  if (soundOn && isFreshStart) startSound(volume);
+
+                  if (isFreshStart) {
+                    setRemainingOnPause(startTime);
+                  } else {
+                    setRemainingOnPause(remainingPrecise);
+                  }
+
+                  setRunning(true);
+                  requestWakeLock();
+                }}
+                style={{
+                  fontSize: "20px",
+                  padding: "10px 22px",
+                  backgroundColor: "#22c55e",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "12px",
+                  cursor: "pointer",
+                  opacity: running ? 0.5 : 1,
+                }}
+              >
+                ▶ START
+              </button>
+
+              <button
+                onMouseDown={() => setPressedButton("stop")}
+                onMouseUp={() => setPressedButton("")}
+                onMouseLeave={() => setPressedButton("")}
+                onTouchStart={() => setPressedButton("stop")}
+                onTouchEnd={() => setPressedButton("")}
+                onClick={() => {
+                  setRunning(false);
+                  setRemainingOnPause(remainingPrecise);
+                  releaseWakeLock();
+                }}
+                style={{
+                  fontSize: "20px",
+                  padding: "10px 22px",
+                  backgroundColor: "#ef4444",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "12px",
+                  cursor: "pointer",
+                  transition: "0.1s",
+                  filter:
+                    pressedButton === "stop"
+                      ? "brightness(0.8)"
+                      : "brightness(1)",
+                  transform:
+                    pressedButton === "stop" ? "scale(0.95)" : "scale(1)",
+                }}
+              >
+                ⏸ STOP
+              </button>
+
+              <button
+                onMouseDown={() => setPressedButton("reset")}
+                onMouseUp={() => setPressedButton("")}
+                onMouseLeave={() => setPressedButton("")}
+                onTouchStart={() => setPressedButton("reset")}
+                onTouchEnd={() => setPressedButton("")}
+                onClick={() => setShowResetConfirm(true)}
+                style={{
+                  fontSize: "20px",
+                  padding: "10px 22px",
+                  backgroundColor: "#666",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "12px",
+                  cursor: "pointer",
+                  transition: "0.1s",
+                  filter:
+                    pressedButton === "reset"
+                      ? "brightness(0.8)"
+                      : "brightness(1)",
+                  transform:
+                    pressedButton === "reset" ? "scale(0.95)" : "scale(1)",
+                }}
+              >
+                ↺ RESET
+              </button>
+            </div>
           </div>
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            gap: "15px",
-            marginTop: "20px",
-          }}
-        >
-          <button
-            disabled={running}
-            onClick={() => {
-              const isFreshStart =
-                remainingPrecise <= 0 || remainingPrecise >= startTime;
-
-              if (soundOn && isFreshStart) startSound(volume);
-
-              if (isFreshStart) {
-                setRemainingOnPause(startTime);
-              } else {
-                setRemainingOnPause(remainingPrecise);
-              }
-
-              setRunning(true);
-              requestWakeLock();
-            }}
-            style={{
-              fontSize: "20px",
-              padding: "10px 22px",
-              backgroundColor: "#22c55e",
-              color: "white",
-              border: "none",
-              borderRadius: "12px",
-              cursor: "pointer",
-              opacity: running ? 0.5 : 1,
-            }}
-          >
-            ▶ START
-          </button>
-
-          <button
-            onMouseDown={() => setPressedButton("stop")}
-            onMouseUp={() => setPressedButton("")}
-            onMouseLeave={() => setPressedButton("")}
-            onTouchStart={() => setPressedButton("stop")}
-            onTouchEnd={() => setPressedButton("")}
-            onClick={() => {
-              setRunning(false);
-              setRemainingOnPause(remainingPrecise);
-              releaseWakeLock();
-            }}
-            style={{
-              fontSize: "20px",
-              padding: "10px 22px",
-              backgroundColor: "#ef4444",
-              color: "white",
-              border: "none",
-              borderRadius: "12px",
-              cursor: "pointer",
-              transition: "0.1s",
-              filter:
-                pressedButton === "stop"
-                  ? "brightness(0.8)"
-                  : "brightness(1)",
-              transform:
-                pressedButton === "stop" ? "scale(0.95)" : "scale(1)",
-            }}
-          >
-            ⏸ STOP
-          </button>
-
-          <button
-            onMouseDown={() => setPressedButton("reset")}
-            onMouseUp={() => setPressedButton("")}
-            onMouseLeave={() => setPressedButton("")}
-            onTouchStart={() => setPressedButton("reset")}
-            onTouchEnd={() => setPressedButton("")}
-            onClick={() => setShowResetConfirm(true)}
-            style={{
-              fontSize: "20px",
-              padding: "10px 22px",
-              backgroundColor: "#666",
-              color: "white",
-              border: "none",
-              borderRadius: "12px",
-              cursor: "pointer",
-              transition: "0.1s",
-              filter:
-                pressedButton === "reset"
-                  ? "brightness(0.8)"
-                  : "brightness(1)",
-              transform:
-                pressedButton === "reset" ? "scale(0.95)" : "scale(1)",
-            }}
-          >
-            ↺ RESET
-          </button>
         </div>
 
         {!running && time !== startTime && (
@@ -433,7 +550,9 @@ function App() {
               pointerEvents: "auto",
             }}
           >
-            <div
+            <div //PAUSE用の黒いカードdiv
+              className="paused-panel"
+              
               style={{
                 display: "flex",
                 gap: "20px",
@@ -498,8 +617,9 @@ function App() {
             }}
           >
             <div
-              onClick={(e) => e.stopPropagation()}
-              style={{
+  className="reset-dialog"
+  onClick={(e) => e.stopPropagation()}
+  style={{
                 backgroundColor: "#1f1f1f",
                 animation: "modalPop 0.18s ease",
                 padding: "28px",
