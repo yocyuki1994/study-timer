@@ -18,7 +18,6 @@ function App() {
   const [running, setRunning] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
   const [soundTheme, setSoundTheme] = useState("calm");
-  const [vibrationOn, setVibrationOn] = useState(true);
   const [pressedButton, setPressedButton] = useState("");
   const [flash, setFlash] = useState(false);
   const [finishFlash, setFinishFlash] = useState(false);
@@ -43,18 +42,27 @@ function App() {
   const lastBeepSecondRef = useRef(null);
   const soundOnRef = useRef(soundOn);
   const soundThemeRef = useRef(soundTheme);
-  const vibrationOnRef = useRef(vibrationOn);
   const wakeLockRef = useRef(null);
   const holdTimerRef = useRef(null);
   const longPressTriggeredRef = useRef(false);
 
+  const calmBeepRef = useRef(null);
+  const calmStartRef = useRef(null);
+  const tensionBeepRef = useRef(null);
+  const tensionStartRef = useRef(null);
+
   const hasValidStartTime = startTimeInput !== "" && startTime > 0;
+
   const isPaused =
     !running && hasValidStartTime && remainingPrecise > 0 && time !== startTime;
+
   const showSettings = !running && !isPaused && !isCooldown;
 
-  const playAudio = (src, volume = 1) => {
-    const audio = new Audio(src);
+  const playPreparedAudio = (audio, volume = 1) => {
+    if (!audio) return;
+
+    audio.pause();
+    audio.currentTime = 0;
     audio.volume = volume;
     audio.play().catch(() => {});
   };
@@ -62,29 +70,38 @@ function App() {
   const startSound = () => {
     if (!soundOnRef.current) return;
 
-    if (soundThemeRef.current === "tension") {
-      playAudio("/tension-start.wav", 0.9);
-    } else {
-      playAudio("/calm-start.wav", 0.9);
-    }
+    const audio =
+      soundThemeRef.current === "tension"
+        ? tensionStartRef.current
+        : calmStartRef.current;
+
+    playPreparedAudio(audio, 0.9);
   };
 
   const beep = () => {
     if (!soundOnRef.current) return;
 
-    if (soundThemeRef.current === "tension") {
-      playAudio("/tension-beep.wav", 0.7);
-    } else {
-      playAudio("/calm-beep.wav", 0.7);
-    }
+    const audio =
+      soundThemeRef.current === "tension"
+        ? tensionBeepRef.current
+        : calmBeepRef.current;
+
+    playPreparedAudio(audio, 0.75);
   };
 
-  const vibrate = (pattern = 80) => {
-    if (!vibrationOnRef.current) return;
+  const unlockAudio = () => {
+    const audios = [
+      calmBeepRef.current,
+      calmStartRef.current,
+      tensionBeepRef.current,
+      tensionStartRef.current,
+    ];
 
-    if ("vibrate" in navigator) {
-      navigator.vibrate(pattern);
-    }
+    audios.forEach((audio) => {
+      if (!audio) return;
+
+      audio.load();
+    });
   };
 
   const triggerFinishGlow = () => {
@@ -181,6 +198,23 @@ function App() {
   };
 
   useEffect(() => {
+    calmBeepRef.current = new Audio("/calm-beep.wav");
+    calmStartRef.current = new Audio("/calm-start.wav");
+    tensionBeepRef.current = new Audio("/tension-beep.wav");
+    tensionStartRef.current = new Audio("/tension-start.wav");
+
+    calmBeepRef.current.preload = "auto";
+    calmStartRef.current.preload = "auto";
+    tensionBeepRef.current.preload = "auto";
+    tensionStartRef.current.preload = "auto";
+
+    calmBeepRef.current.load();
+    calmStartRef.current.load();
+    tensionBeepRef.current.load();
+    tensionStartRef.current.load();
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem("qTimerPresets", JSON.stringify(presets));
   }, [presets]);
 
@@ -191,10 +225,6 @@ function App() {
   useEffect(() => {
     soundThemeRef.current = soundTheme;
   }, [soundTheme]);
-
-  useEffect(() => {
-    vibrationOnRef.current = vibrationOn;
-  }, [vibrationOn]);
 
   useEffect(() => {
     return () => {
@@ -233,13 +263,11 @@ function App() {
         displayTime !== lastBeepSecondRef.current
       ) {
         beep();
-        vibrate(40);
         lastBeepSecondRef.current = displayTime;
       }
 
       if (remaining <= 0) {
         triggerFinishGlow();
-        vibrate([80, 40, 80]);
 
         if (!isCooldown && cooldownTime > 0) {
           startSound();
@@ -576,6 +604,114 @@ function App() {
             gap: 15px;
             margin-top: 12px;
           }
+
+          @media (orientation: landscape) and (max-height: 500px) {
+            .app-root {
+              padding: 12px 24px;
+              justify-content: center;
+            }
+
+            .question-title {
+              position: fixed;
+              top: 8px;
+              left: 20px;
+              font-size: 22px !important;
+              opacity: 0.7;
+              letter-spacing: 2px;
+              margin: 0;
+            }
+
+            .main-layout {
+              flex-direction: row;
+              gap: 36px;
+              align-items: center;
+            }
+
+            .timer-circle {
+              width: 240px;
+              height: 240px;
+              margin-bottom: 0;
+            }
+
+            .timer-inner {
+              width: 200px;
+              height: 200px;
+            }
+
+            .timer-text {
+              font-size: 52px;
+            }
+
+            .controls-panel input {
+              font-size: 16px !important;
+              padding: 6px !important;
+            }
+
+            .time-inputs {
+              margin-bottom: 10px !important;
+            }
+
+            .preset-list {
+              margin-bottom: 10px !important;
+              max-width: 280px;
+              gap: 8px;
+            }
+
+            .preset-card {
+              min-width: 66px;
+              min-height: 42px;
+              padding: 7px 10px;
+              border-radius: 14px;
+            }
+
+            .preset-name {
+              font-size: 13px;
+            }
+
+            .preset-seconds {
+              font-size: 10px;
+            }
+
+            .preset-add {
+              min-width: 48px;
+              min-height: 42px;
+              font-size: 24px;
+            }
+
+            .toggle-row {
+              margin-bottom: 12px !important;
+            }
+
+            .sound-button {
+              font-size: 16px !important;
+              padding: 7px 14px !important;
+            }
+
+            .main-buttons {
+              margin-top: 10px;
+              gap: 10px;
+            }
+
+            .main-buttons button {
+              font-size: 16px !important;
+              padding: 9px 14px !important;
+            }
+
+            .paused-panel {
+              padding: 18px 22px !important;
+              gap: 14px !important;
+            }
+
+            .paused-panel button {
+              font-size: 18px !important;
+              padding: 10px 20px !important;
+            }
+
+            .preset-modal {
+              padding: 22px !important;
+              width: 260px !important;
+            }
+          }
         `}
       </style>
 
@@ -767,37 +903,13 @@ function App() {
               <button
                 className="sound-button"
                 onClick={() => {
-                  setSoundOn((v) => {
-                    const next = !v;
-                    if (next) startSound();
-                    return next;
-                  });
+                  setSoundOn((v) => !v);
                 }}
                 style={{
                   backgroundColor: soundOn ? "#22c55e" : "#555",
                 }}
               >
                 {soundOn ? "🔊 ON" : "🔇 OFF"}
-              </button>
-
-              <button
-                className="sound-button"
-                onClick={() => {
-                  setVibrationOn((v) => {
-                    const next = !v;
-
-                    if (next && "vibrate" in navigator) {
-                      navigator.vibrate(80);
-                    }
-
-                    return next;
-                  });
-                }}
-                style={{
-                  backgroundColor: vibrationOn ? "#22c55e" : "#555",
-                }}
-              >
-                {vibrationOn ? "📳 ON" : "📴 OFF"}
               </button>
 
               <button
@@ -820,6 +932,11 @@ function App() {
               <div className="main-buttons">
                 {running ? (
                   <button
+                    onMouseDown={() => setPressedButton("stop")}
+                    onMouseUp={() => setPressedButton("")}
+                    onMouseLeave={() => setPressedButton("")}
+                    onTouchStart={() => setPressedButton("stop")}
+                    onTouchEnd={() => setPressedButton("")}
                     onClick={() => {
                       setRunning(false);
                       setRemainingOnPause(remainingPrecise);
@@ -833,6 +950,13 @@ function App() {
                       border: "none",
                       borderRadius: "12px",
                       cursor: "pointer",
+                      transition: "0.1s",
+                      filter:
+                        pressedButton === "stop"
+                          ? "brightness(0.8)"
+                          : "brightness(1)",
+                      transform:
+                        pressedButton === "stop" ? "scale(0.95)" : "scale(1)",
                     }}
                   >
                     ⏸ STOP
@@ -842,6 +966,8 @@ function App() {
                     disabled={!hasValidStartTime}
                     onClick={() => {
                       if (!hasValidStartTime) return;
+
+                      unlockAudio();
 
                       const currentDuration = isCooldown
                         ? cooldownTime
