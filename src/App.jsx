@@ -347,6 +347,30 @@ setTimeout(() => {
   animation: finishGlow 0.45s ease;
 }
 
+          @keyframes cooldownGlow {
+  0% {
+    box-shadow:
+      0 0 18px rgba(34, 197, 94, 0.45),
+      0 0 36px rgba(34, 197, 94, 0.2);
+  }
+
+  50% {
+    box-shadow:
+      0 0 28px rgba(34, 197, 94, 0.8),
+      0 0 54px rgba(34, 197, 94, 0.45);
+  }
+
+  100% {
+    box-shadow:
+      0 0 18px rgba(34, 197, 94, 0.45),
+      0 0 36px rgba(34, 197, 94, 0.2);
+  }
+}
+
+.cooldown-glow {
+  animation: cooldownGlow 1.8s ease-in-out infinite;
+}
+
           .danger-ring {
             animation: pulse 1s infinite;
           }
@@ -630,10 +654,13 @@ setTimeout(() => {
           key={isCooldown ? "cooldown" : question}
           className="question-title"
           style={{
-            fontSize: "40px",
-            animation: "pop 0.4s ease",
-            color: isCooldown ? "#60a5fa" : "white",
-          }}
+  fontSize: "40px",
+  animation: "pop 0.4s ease",
+  color: isCooldown ? "#22c55e" : "white",
+  textShadow: isCooldown
+    ? "0 0 18px rgba(34,197,94,0.9)"
+    : "none",
+}}
         >
           {isCooldown ? "休憩" : `問題 ${question}`}
         </h1>
@@ -643,6 +670,7 @@ setTimeout(() => {
             className={`timer-circle
   ${!isCooldown && time <= 5 ? "danger-ring" : ""}
   ${finishFlash ? "finish-glow" : ""}
+  ${isCooldown ? "cooldown-glow" : ""}
 `}
             style={{
               background: `conic-gradient(
