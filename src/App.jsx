@@ -845,33 +845,6 @@ function App() {
               >
                 ⏸ STOP
               </button>
-
-              <button
-                onMouseDown={() => setPressedButton("reset")}
-                onMouseUp={() => setPressedButton("")}
-                onMouseLeave={() => setPressedButton("")}
-                onTouchStart={() => setPressedButton("reset")}
-                onTouchEnd={() => setPressedButton("")}
-                onClick={() => setShowResetConfirm(true)}
-                style={{
-                  fontSize: "20px",
-                  padding: "10px 22px",
-                  backgroundColor: "#666",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "12px",
-                  cursor: "pointer",
-                  transition: "0.1s",
-                  filter:
-                    pressedButton === "reset"
-                      ? "brightness(0.8)"
-                      : "brightness(1)",
-                  transform:
-                    pressedButton === "reset" ? "scale(0.95)" : "scale(1)",
-                }}
-              >
-                ↺ RESET
-              </button>
             </div>
           </div>
         </div>
