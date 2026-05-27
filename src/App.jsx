@@ -74,8 +74,7 @@ function App() {
   const hasValidStartTime = startTimeInput !== "" && startTime > 0;
   const isPaused =
     !running && hasValidStartTime && remainingPrecise > 0 && time !== startTime;
-  const showSettings =
-    !running && hasValidStartTime && time === startTime && !isCooldown;
+  const showSettings = !running && !isPaused && !isCooldown;
 
   const vibrate = (pattern = 80) => {
     if (!vibrationOnRef.current) return;
