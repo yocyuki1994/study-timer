@@ -84,6 +84,26 @@ function App() {
     setRemainingPrecise(newTime);
   };
 
+  const addPreset = () => {
+    if (!hasValidStartTime || running) return;
+
+    const name = prompt("セット名を入力してください");
+
+    if (!name) return;
+
+    setPresets((prev) => [
+      ...prev,
+      {
+        name,
+        seconds: startTime,
+      },
+    ]);
+  };
+
+  const deletePreset = (indexToDelete) => {
+    setPresets((prev) => prev.filter((_, index) => index !== indexToDelete));
+  };
+
   const requestWakeLock = async () => {
     try {
       if ("wakeLock" in navigator) {
@@ -129,7 +149,8 @@ function App() {
       const duration = isCooldown ? cooldownTime : startTime;
       const elapsed = (performance.now() - startAtRef.current) / 1000;
       const remaining = Math.max(0, duration - elapsed);
-      const percent = duration > 0 ? Math.max(0, (remaining / duration) * 100) : 0;
+      const percent =
+        duration > 0 ? Math.max(0, (remaining / duration) * 100) : 0;
       const displayTime = Math.ceil(remaining);
 
       setRemainingPrecise(remaining);
@@ -341,11 +362,97 @@ function App() {
 
           .preset-list {
             display: flex;
-            gap: 8px;
-            margin-bottom: 12px;
+            gap: 10px;
+            margin-bottom: 16px;
             flex-wrap: wrap;
             justify-content: center;
-            max-width: 320px;
+            max-width: 340px;
+          }
+
+          .preset-card {
+            position: relative;
+            min-width: 74px;
+            min-height: 48px;
+            padding: 8px 22px 8px 12px;
+            border: none;
+            border-radius: 16px;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.14s ease, box-shadow 0.14s ease, background-color 0.14s ease;
+          }
+
+          .preset-card.selected {
+            background-color: #22c55e;
+            transform: scale(1.08);
+            box-shadow: 0 0 18px rgba(34, 197, 94, 0.75);
+          }
+
+          .preset-card.normal {
+            background-color: #2a2a2a;
+            transform: scale(1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+          }
+
+          .preset-card:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+          }
+
+          .preset-name {
+            font-size: 14px;
+            font-weight: bold;
+            line-height: 1.1;
+            margin-bottom: 3px;
+          }
+
+          .preset-seconds {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.75);
+          }
+
+          .preset-delete {
+            position: absolute;
+            top: -7px;
+            right: -7px;
+            width: 22px;
+            height: 22px;
+            border-radius: 999px;
+            border: none;
+            background-color: #ef4444;
+            color: white;
+            font-size: 14px;
+            line-height: 22px;
+            padding: 0;
+            cursor: pointer;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+          }
+
+          .preset-delete:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+          }
+
+          .preset-add {
+            min-width: 54px;
+            min-height: 48px;
+            border-radius: 16px;
+            border: 1px dashed #555;
+            background-color: #151515;
+            color: white;
+            font-size: 26px;
+            cursor: pointer;
+            transition: transform 0.14s ease, background-color 0.14s ease, border-color 0.14s ease;
+          }
+
+          .preset-add:hover {
+            background-color: #222;
+            border-color: #777;
+            transform: scale(1.04);
+          }
+
+          .preset-add:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
           }
 
           .main-buttons {
@@ -393,7 +500,7 @@ function App() {
 
             .controls-panel input {
               font-size: 16px !important;
-              padding: 8px !important;
+              padding: 6px !important;
             }
 
             .time-inputs {
@@ -402,7 +509,29 @@ function App() {
 
             .preset-list {
               margin-bottom: 10px !important;
-              max-width: 260px;
+              max-width: 280px;
+              gap: 8px;
+            }
+
+            .preset-card {
+              min-width: 66px;
+              min-height: 42px;
+              padding: 7px 20px 7px 10px;
+              border-radius: 14px;
+            }
+
+            .preset-name {
+              font-size: 13px;
+            }
+
+            .preset-seconds {
+              font-size: 10px;
+            }
+
+            .preset-add {
+              min-width: 48px;
+              min-height: 42px;
+              font-size: 24px;
             }
 
             .sound-button {
@@ -562,60 +691,46 @@ function App() {
             </div>
 
             <div className="preset-list">
-              {presets.map((preset, index) => (
-                <button
-                  key={`${preset.name}-${index}`}
-                  disabled={running}
-                  onClick={() => {
-                    applyMainTime(preset.seconds);
-                  }}
-                  style={{
-                    fontSize: "14px",
-                    padding: "7px 12px",
-                    backgroundColor:
-                      startTime === preset.seconds ? "#22c55e" : "#333",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "999px",
-                    opacity: running ? 0.5 : 1,
-                    cursor: running ? "not-allowed" : "pointer",
-                  }}
-                >
-                  {preset.name}
-                </button>
-              ))}
+              {presets.map((preset, index) => {
+                const selected = startTime === preset.seconds;
+
+                return (
+                  <div key={`${preset.name}-${index}`} style={{ position: "relative" }}>
+                    <button
+                      className={`preset-card ${selected ? "selected" : "normal"}`}
+                      disabled={running}
+                      onClick={() => {
+                        applyMainTime(preset.seconds);
+                      }}
+                    >
+                      <div className="preset-name">{preset.name}</div>
+                      <div className="preset-seconds">{preset.seconds}秒</div>
+                    </button>
+
+                    <button
+                      className="preset-delete"
+                      disabled={running}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deletePreset(index);
+                      }}
+                      aria-label={`${preset.name}を削除`}
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
+
+              <button
+                className="preset-add"
+                disabled={running || !hasValidStartTime}
+                onClick={addPreset}
+                aria-label="プリセットを追加"
+              >
+                ＋
+              </button>
             </div>
-
-            <button
-              disabled={running || !hasValidStartTime}
-              onClick={() => {
-                const name = prompt("セット名を入力してください");
-
-                if (!name) return;
-
-                setPresets((prev) => [
-                  ...prev,
-                  {
-                    name,
-                    seconds: startTime,
-                  },
-                ]);
-              }}
-              style={{
-                fontSize: "14px",
-                padding: "7px 14px",
-                marginBottom: "20px",
-                backgroundColor: "#2563eb",
-                color: "white",
-                border: "none",
-                borderRadius: "999px",
-                opacity: running || !hasValidStartTime ? 0.5 : 1,
-                cursor:
-                  running || !hasValidStartTime ? "not-allowed" : "pointer",
-              }}
-            >
-              ＋ 現在の秒数を保存
-            </button>
 
             <button
               className="sound-button"
