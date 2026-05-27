@@ -607,6 +607,8 @@ function App() {
           </div>
 
           <div className="controls-panel">
+            {!running && (
+  <>
             <div className="time-inputs">
               <div className="input-block">
                 <div className="input-label">時間</div>
@@ -771,6 +773,8 @@ function App() {
             >
               {soundOn ? "🔊 ON" : "🔇 OFF"}
             </button>
+              </>
+)}
 
             <div className="main-buttons">
               <button
