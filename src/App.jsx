@@ -42,12 +42,13 @@ function App() {
   const [question, setQuestion] = useState(1);
   const [running, setRunning] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
+  const [vibrationOn, setVibrationOn] = useState(true);
   const [pressedButton, setPressedButton] = useState("");
   const [flash, setFlash] = useState(false);
+  const [finishFlash, setFinishFlash] = useState(false);
   const [remainingOnPause, setRemainingOnPause] = useState(30);
   const [remainingPrecise, setRemainingPrecise] = useState(30);
   const [isCooldown, setIsCooldown] = useState(false);
-  const [finishFlash, setFinishFlash] = useState(false);
 
   const [showPresetModal, setShowPresetModal] = useState(false);
   const [newPresetName, setNewPresetName] = useState("");
@@ -65,6 +66,7 @@ function App() {
   const animationRef = useRef(null);
   const lastBeepSecondRef = useRef(null);
   const soundOnRef = useRef(soundOn);
+  const vibrationOnRef = useRef(vibrationOn);
   const wakeLockRef = useRef(null);
   const holdTimerRef = useRef(null);
   const longPressTriggeredRef = useRef(false);
@@ -74,6 +76,22 @@ function App() {
     !running && hasValidStartTime && remainingPrecise > 0 && time !== startTime;
   const showSettings =
     !running && hasValidStartTime && time === startTime && !isCooldown;
+
+  const vibrate = (pattern = 80) => {
+    if (!vibrationOnRef.current) return;
+
+    if ("vibrate" in navigator) {
+      navigator.vibrate(pattern);
+    }
+  };
+
+  const triggerFinishGlow = () => {
+    setFinishFlash(true);
+
+    setTimeout(() => {
+      setFinishFlash(false);
+    }, 450);
+  };
 
   const formatTime = (seconds) => {
     const safeSeconds = Math.max(0, Number(seconds) || 0);
@@ -169,6 +187,10 @@ function App() {
   }, [soundOn]);
 
   useEffect(() => {
+    vibrationOnRef.current = vibrationOn;
+  }, [vibrationOn]);
+
+  useEffect(() => {
     return () => {
       releaseWakeLock();
     };
@@ -198,23 +220,22 @@ function App() {
 
       if (
         !isCooldown &&
-        soundOnRef.current &&
         displayTime <= 5 &&
         displayTime > 0 &&
         displayTime !== lastBeepSecondRef.current
       ) {
-        beep();
+        if (soundOnRef.current) {
+          beep();
+        }
+
+        vibrate(40);
         lastBeepSecondRef.current = displayTime;
       }
 
       if (remaining <= 0) {
+        triggerFinishGlow();
+        vibrate([80, 40, 80]);
 
-        setFinishFlash(true);
-
-setTimeout(() => {
-  setFinishFlash(false);
-}, 450);
-        
         if (!isCooldown && cooldownTime > 0) {
           if (soundOnRef.current) startSound();
 
@@ -325,54 +346,54 @@ setTimeout(() => {
           }
 
           @keyframes finishGlow {
-  0% {
-    box-shadow: 0 0 0px rgba(34, 197, 94, 0);
-    transform: scale(1);
-  }
+            0% {
+              box-shadow: 0 0 0px rgba(34, 197, 94, 0);
+              transform: scale(1);
+            }
 
-  50% {
-    box-shadow:
-      0 0 30px rgba(34, 197, 94, 0.9),
-      0 0 60px rgba(34, 197, 94, 0.5);
-    transform: scale(1.04);
-  }
+            50% {
+              box-shadow:
+                0 0 30px rgba(34, 197, 94, 0.9),
+                0 0 60px rgba(34, 197, 94, 0.5);
+              transform: scale(1.04);
+            }
 
-  100% {
-    box-shadow: 0 0 0px rgba(34, 197, 94, 0);
-    transform: scale(1);
-  }
-}
-
-.finish-glow {
-  animation: finishGlow 0.45s ease;
-}
+            100% {
+              box-shadow: 0 0 0px rgba(34, 197, 94, 0);
+              transform: scale(1);
+            }
+          }
 
           @keyframes cooldownGlow {
-  0% {
-    box-shadow:
-      0 0 18px rgba(34, 197, 94, 0.45),
-      0 0 36px rgba(34, 197, 94, 0.2);
-  }
+            0% {
+              box-shadow:
+                0 0 18px rgba(34, 197, 94, 0.45),
+                0 0 36px rgba(34, 197, 94, 0.2);
+            }
 
-  50% {
-    box-shadow:
-      0 0 28px rgba(34, 197, 94, 0.8),
-      0 0 54px rgba(34, 197, 94, 0.45);
-  }
+            50% {
+              box-shadow:
+                0 0 28px rgba(34, 197, 94, 0.8),
+                0 0 54px rgba(34, 197, 94, 0.45);
+            }
 
-  100% {
-    box-shadow:
-      0 0 18px rgba(34, 197, 94, 0.45),
-      0 0 36px rgba(34, 197, 94, 0.2);
-  }
-}
-
-.cooldown-glow {
-  animation: cooldownGlow 1.8s ease-in-out infinite;
-}
+            100% {
+              box-shadow:
+                0 0 18px rgba(34, 197, 94, 0.45),
+                0 0 36px rgba(34, 197, 94, 0.2);
+            }
+          }
 
           .danger-ring {
             animation: pulse 1s infinite;
+          }
+
+          .finish-glow {
+            animation: finishGlow 0.45s ease;
+          }
+
+          .cooldown-glow {
+            animation: cooldownGlow 1.8s ease-in-out infinite;
           }
 
           .app-root {
@@ -528,10 +549,15 @@ setTimeout(() => {
             cursor: not-allowed;
           }
 
+          .toggle-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+          }
+
           .sound-button {
             font-size: 18px;
             padding: 8px 20px;
-            margin-bottom: 20px;
             border: none;
             border-radius: 999px;
             color: white;
@@ -617,8 +643,13 @@ setTimeout(() => {
               font-size: 24px;
             }
 
-            .sound-button {
+            .toggle-row {
               margin-bottom: 12px !important;
+            }
+
+            .sound-button {
+              font-size: 16px !important;
+              padding: 7px 14px !important;
             }
 
             .main-buttons {
@@ -654,13 +685,13 @@ setTimeout(() => {
           key={isCooldown ? "cooldown" : question}
           className="question-title"
           style={{
-  fontSize: "40px",
-  animation: "pop 0.4s ease",
-  color: isCooldown ? "#22c55e" : "white",
-  textShadow: isCooldown
-    ? "0 0 18px rgba(34,197,94,0.9)"
-    : "none",
-}}
+            fontSize: "40px",
+            animation: "pop 0.4s ease",
+            color: isCooldown ? "#22c55e" : "white",
+            textShadow: isCooldown
+              ? "0 0 18px rgba(34,197,94,0.9)"
+              : "none",
+          }}
         >
           {isCooldown ? "休憩" : `問題 ${question}`}
         </h1>
@@ -668,16 +699,16 @@ setTimeout(() => {
         <div className="main-layout">
           <div
             className={`timer-circle
-  ${!isCooldown && time <= 5 ? "danger-ring" : ""}
-  ${finishFlash ? "finish-glow" : ""}
-  ${isCooldown ? "cooldown-glow" : ""}
-`}
+              ${!isCooldown && time <= 5 ? "danger-ring" : ""}
+              ${finishFlash ? "finish-glow" : ""}
+              ${isCooldown ? "cooldown-glow" : ""}
+            `}
             style={{
               background: `conic-gradient(
                 from 0deg,
                 #333 0% ${100 - progress}%,
                 ${
-                  isCooldown ? "#60a5fa" : time <= 5 ? "red" : "lime"
+                  isCooldown ? "#22c55e" : time <= 5 ? "red" : "lime"
                 } ${100 - progress}% 100%
               )`,
             }}
@@ -686,7 +717,7 @@ setTimeout(() => {
               <div
                 className="timer-text"
                 style={{
-                  color: isCooldown ? "#60a5fa" : time <= 5 ? "red" : "white",
+                  color: isCooldown ? "#22c55e" : time <= 5 ? "red" : "white",
                 }}
               >
                 {formatTime(time)}
@@ -826,21 +857,43 @@ setTimeout(() => {
               </>
             )}
 
-            <button
-              className="sound-button"
-              onClick={() => {
-                setSoundOn((v) => {
-                  const next = !v;
-                  if (next) startSound();
-                  return next;
-                });
-              }}
-              style={{
-                backgroundColor: soundOn ? "#22c55e" : "#555",
-              }}
-            >
-              {soundOn ? "🔊 ON" : "🔇 OFF"}
-            </button>
+            <div className="toggle-row">
+              <button
+                className="sound-button"
+                onClick={() => {
+                  setSoundOn((v) => {
+                    const next = !v;
+                    if (next) startSound();
+                    return next;
+                  });
+                }}
+                style={{
+                  backgroundColor: soundOn ? "#22c55e" : "#555",
+                }}
+              >
+                {soundOn ? "🔊 ON" : "🔇 OFF"}
+              </button>
+
+              <button
+                className="sound-button"
+                onClick={() => {
+                  setVibrationOn((v) => {
+                    const next = !v;
+
+                    if (next && "vibrate" in navigator) {
+                      navigator.vibrate(80);
+                    }
+
+                    return next;
+                  });
+                }}
+                style={{
+                  backgroundColor: vibrationOn ? "#22c55e" : "#555",
+                }}
+              >
+                {vibrationOn ? "📳 ON" : "📴 OFF"}
+              </button>
+            </div>
 
             {!isPaused && (
               <div className="main-buttons">
