@@ -708,7 +708,11 @@ function App() {
                 from 0deg,
                 #333 0% ${100 - progress}%,
                 ${
-                  isCooldown ? "#3b82f6" : time <= 5 ? "red" : "lime"
+                 isCooldown
+  ? "#3b82f6"
+  : hasValidStartTime && time <= 5
+  ? "red"
+  : "lime"
                 } ${100 - progress}% 100%
               )`,
             }}
@@ -717,7 +721,11 @@ function App() {
               <div
                 className="timer-text"
                 style={{
-                  color: isCooldown ? "#3b82f6" : time <= 5 ? "red" : "white",
+                  color: isCooldown
+  ? "#3b82f6"
+  : hasValidStartTime && time <= 5
+  ? "red"
+  : "white",
                 }}
               >
                 {formatTime(time)}
