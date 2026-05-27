@@ -689,7 +689,7 @@ function App() {
             animation: "pop 0.4s ease",
             color: isCooldown ? "#22c55e" : "white",
             textShadow: isCooldown
-              ? "0 0 18px rgba(34,197,94,0.9)"
+              ? "0 0 18px rgba(59,130,246,0.9)"
               : "none",
           }}
         >
@@ -708,7 +708,7 @@ function App() {
                 from 0deg,
                 #333 0% ${100 - progress}%,
                 ${
-                  isCooldown ? "#22c55e" : time <= 5 ? "red" : "lime"
+                  isCooldown ? "#3b82f6" : time <= 5 ? "red" : "lime"
                 } ${100 - progress}% 100%
               )`,
             }}
@@ -717,7 +717,7 @@ function App() {
               <div
                 className="timer-text"
                 style={{
-                  color: isCooldown ? "#22c55e" : time <= 5 ? "red" : "white",
+                  color: isCooldown ? "#3b82f6" : time <= 5 ? "red" : "white",
                 }}
               >
                 {formatTime(time)}
