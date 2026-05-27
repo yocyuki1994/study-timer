@@ -1,43 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 
-const audioContext = new AudioContext();
-
-const playSound = (frequency, duration, volume = 0.3) => {
-  const oscillator = audioContext.createOscillator();
-  const gainNode = audioContext.createGain();
-
-  gainNode.gain.value = volume;
-  oscillator.connect(gainNode);
-  gainNode.connect(audioContext.destination);
-
-  oscillator.frequency.value = frequency;
-  oscillator.type = "sine";
-  oscillator.start();
-
-  gainNode.gain.exponentialRampToValueAtTime(
-    0.0001,
-    audioContext.currentTime + duration
-  );
-
-  oscillator.stop(audioContext.currentTime + duration);
-};
-
-const startSound = () => {
-  if (soundTheme === "tension") {
-    playAudio("/tension-start.mp3", 0.9);
-  } else {
-    playAudio("/calm-start.mp3", 0.9);
-  }
-};
-
-const beep = () => {
-  if (soundTheme === "tension") {
-    playAudio("/tension-beep.mp3", 0.7);
-  } else {
-    playAudio("/calm-beep.mp3", 0.7);
-  }
-};
-
 const defaultPresets = [
   { name: "英単語", seconds: 7 },
   { name: "標準", seconds: 30 },
@@ -55,6 +17,7 @@ function App() {
   const [question, setQuestion] = useState(1);
   const [running, setRunning] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
+  const [soundTheme, setSoundTheme] = useState("calm");
   const [vibrationOn, setVibrationOn] = useState(true);
   const [pressedButton, setPressedButton] = useState("");
   const [flash, setFlash] = useState(false);
@@ -62,7 +25,6 @@ function App() {
   const [remainingOnPause, setRemainingOnPause] = useState(30);
   const [remainingPrecise, setRemainingPrecise] = useState(30);
   const [isCooldown, setIsCooldown] = useState(false);
-  const [soundTheme, setSoundTheme] = useState("calm");
 
   const [showPresetModal, setShowPresetModal] = useState(false);
   const [newPresetName, setNewPresetName] = useState("");
@@ -80,6 +42,7 @@ function App() {
   const animationRef = useRef(null);
   const lastBeepSecondRef = useRef(null);
   const soundOnRef = useRef(soundOn);
+  const soundThemeRef = useRef(soundTheme);
   const vibrationOnRef = useRef(vibrationOn);
   const wakeLockRef = useRef(null);
   const holdTimerRef = useRef(null);
@@ -89,6 +52,32 @@ function App() {
   const isPaused =
     !running && hasValidStartTime && remainingPrecise > 0 && time !== startTime;
   const showSettings = !running && !isPaused && !isCooldown;
+
+  const playAudio = (src, volume = 1) => {
+    const audio = new Audio(src);
+    audio.volume = volume;
+    audio.play().catch(() => {});
+  };
+
+  const startSound = () => {
+    if (!soundOnRef.current) return;
+
+    if (soundThemeRef.current === "tension") {
+      playAudio("/tension-start.wav", 0.9);
+    } else {
+      playAudio("/calm-start.wav", 0.9);
+    }
+  };
+
+  const beep = () => {
+    if (!soundOnRef.current) return;
+
+    if (soundThemeRef.current === "tension") {
+      playAudio("/tension-beep.wav", 0.7);
+    } else {
+      playAudio("/calm-beep.wav", 0.7);
+    }
+  };
 
   const vibrate = (pattern = 80) => {
     if (!vibrationOnRef.current) return;
@@ -200,6 +189,10 @@ function App() {
   }, [soundOn]);
 
   useEffect(() => {
+    soundThemeRef.current = soundTheme;
+  }, [soundTheme]);
+
+  useEffect(() => {
     vibrationOnRef.current = vibrationOn;
   }, [vibrationOn]);
 
@@ -211,6 +204,7 @@ function App() {
 
   useEffect(() => {
     if (!running) return;
+    if (!hasValidStartTime) return;
 
     const currentDuration = isCooldown ? cooldownTime : startTime;
 
@@ -233,14 +227,12 @@ function App() {
 
       if (
         !isCooldown &&
+        hasValidStartTime &&
         displayTime <= 5 &&
         displayTime > 0 &&
         displayTime !== lastBeepSecondRef.current
       ) {
-        if (soundOnRef.current) {
-          beep();
-        }
-
+        beep();
         vibrate(40);
         lastBeepSecondRef.current = displayTime;
       }
@@ -250,7 +242,7 @@ function App() {
         vibrate([80, 40, 80]);
 
         if (!isCooldown && cooldownTime > 0) {
-          if (soundOnRef.current) startSound();
+          startSound();
 
           setIsCooldown(true);
           setRemainingOnPause(cooldownTime);
@@ -259,7 +251,7 @@ function App() {
           setProgress(100);
           startAtRef.current = performance.now();
         } else {
-          if (soundOnRef.current) startSound();
+          startSound();
 
           setQuestion((q) => q + 1);
           setIsCooldown(false);
@@ -279,10 +271,17 @@ function App() {
     animationRef.current = requestAnimationFrame(update);
 
     return () => cancelAnimationFrame(animationRef.current);
-  }, [running, startTime, cooldownTime, remainingOnPause, isCooldown]);
+  }, [
+    running,
+    startTime,
+    cooldownTime,
+    remainingOnPause,
+    isCooldown,
+    hasValidStartTime,
+  ]);
 
   useEffect(() => {
-    if (!isCooldown && time <= 5 && time > 0) {
+    if (!isCooldown && hasValidStartTime && time <= 5 && time > 0) {
       setFlash(true);
 
       const timeout = setTimeout(() => {
@@ -291,7 +290,7 @@ function App() {
 
       return () => clearTimeout(timeout);
     }
-  }, [time, isCooldown]);
+  }, [time, isCooldown, hasValidStartTime]);
 
   const resetTimer = () => {
     setRunning(false);
@@ -548,13 +547,6 @@ function App() {
             color: white;
             font-size: 26px;
             cursor: pointer;
-            transition: transform 0.14s ease, background-color 0.14s ease, border-color 0.14s ease;
-          }
-
-          .preset-add:hover {
-            background-color: #222;
-            border-color: #777;
-            transform: scale(1.04);
           }
 
           .preset-add:disabled {
@@ -564,13 +556,15 @@ function App() {
 
           .toggle-row {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
           }
 
           .sound-button {
-            font-size: 18px;
-            padding: 8px 20px;
+            font-size: 16px;
+            padding: 8px 14px;
             border: none;
             border-radius: 999px;
             color: white;
@@ -582,114 +576,6 @@ function App() {
             gap: 15px;
             margin-top: 12px;
           }
-
-          @media (orientation: landscape) and (max-height: 500px) {
-            .app-root {
-              padding: 12px 24px;
-              justify-content: center;
-            }
-
-            .question-title {
-              position: fixed;
-              top: 8px;
-              left: 20px;
-              font-size: 22px !important;
-              opacity: 0.7;
-              letter-spacing: 2px;
-              margin: 0;
-            }
-
-            .main-layout {
-              flex-direction: row;
-              gap: 36px;
-              align-items: center;
-            }
-
-            .timer-circle {
-              width: 240px;
-              height: 240px;
-              margin-bottom: 0;
-            }
-
-            .timer-inner {
-              width: 200px;
-              height: 200px;
-            }
-
-            .timer-text {
-              font-size: 52px;
-            }
-
-            .controls-panel input {
-              font-size: 16px !important;
-              padding: 6px !important;
-            }
-
-            .time-inputs {
-              margin-bottom: 10px !important;
-            }
-
-            .preset-list {
-              margin-bottom: 10px !important;
-              max-width: 280px;
-              gap: 8px;
-            }
-
-            .preset-card {
-              min-width: 66px;
-              min-height: 42px;
-              padding: 7px 10px;
-              border-radius: 14px;
-            }
-
-            .preset-name {
-              font-size: 13px;
-            }
-
-            .preset-seconds {
-              font-size: 10px;
-            }
-
-            .preset-add {
-              min-width: 48px;
-              min-height: 42px;
-              font-size: 24px;
-            }
-
-            .toggle-row {
-              margin-bottom: 12px !important;
-            }
-
-            .sound-button {
-              font-size: 16px !important;
-              padding: 7px 14px !important;
-            }
-
-            .main-buttons {
-              margin-top: 10px;
-              gap: 10px;
-            }
-
-            .main-buttons button {
-              font-size: 16px !important;
-              padding: 9px 14px !important;
-            }
-
-            .paused-panel {
-              padding: 18px 22px !important;
-              gap: 14px !important;
-            }
-
-            .paused-panel button {
-              font-size: 18px !important;
-              padding: 10px 20px !important;
-            }
-
-            .preset-modal {
-              padding: 22px !important;
-              width: 260px !important;
-            }
-          }
         `}
       </style>
 
@@ -700,11 +586,7 @@ function App() {
           style={{
             fontSize: "40px",
             animation: "pop 0.4s ease",
-            color: isCooldown
-  ? "#3b82f6"
-  : hasValidStartTime && time <= 5
-  ? "red"
-  : "white",
+            color: isCooldown ? "#3b82f6" : "white",
             textShadow: isCooldown
               ? "0 0 18px rgba(59,130,246,0.9)"
               : "none",
@@ -716,7 +598,11 @@ function App() {
         <div className="main-layout">
           <div
             className={`timer-circle
-  ${!isCooldown && hasValidStartTime && time <= 5 ? "danger-ring" : ""}
+              ${
+                !isCooldown && hasValidStartTime && time <= 5
+                  ? "danger-ring"
+                  : ""
+              }
               ${finishFlash ? "finish-glow" : ""}
               ${isCooldown ? "cooldown-glow" : ""}
             `}
@@ -725,11 +611,11 @@ function App() {
                 from 0deg,
                 #333 0% ${100 - progress}%,
                 ${
-                 isCooldown
-  ? "#3b82f6"
-  : hasValidStartTime && time <= 5
-  ? "red"
-  : "lime"
+                  isCooldown
+                    ? "#3b82f6"
+                    : hasValidStartTime && time <= 5
+                    ? "red"
+                    : "lime"
                 } ${100 - progress}% 100%
               )`,
             }}
@@ -739,10 +625,10 @@ function App() {
                 className="timer-text"
                 style={{
                   color: isCooldown
-  ? "#3b82f6"
-  : hasValidStartTime && time <= 5
-  ? "red"
-  : "white",
+                    ? "#3b82f6"
+                    : hasValidStartTime && time <= 5
+                    ? "red"
+                    : "white",
                 }}
               >
                 {formatTime(time)}
@@ -788,10 +674,8 @@ function App() {
                         borderRadius: "10px",
                         width: "64px",
                         textAlign: "center",
-                        opacity: running ? 0.5 : 1,
-                        cursor: running ? "not-allowed" : "text",
-                        backgroundColor: running ? "#444" : "white",
-                        color: running ? "#999" : "black",
+                        backgroundColor: "white",
+                        color: "black",
                         border: "none",
                       }}
                     />
@@ -826,10 +710,8 @@ function App() {
                         borderRadius: "10px",
                         width: "64px",
                         textAlign: "center",
-                        opacity: running ? 0.5 : 1,
-                        cursor: running ? "not-allowed" : "text",
-                        backgroundColor: running ? "#444" : "white",
-                        color: running ? "#999" : "black",
+                        backgroundColor: "white",
+                        color: "black",
                         border: "none",
                       }}
                     />
@@ -874,7 +756,6 @@ function App() {
                     className="preset-add"
                     disabled={running || !hasValidStartTime}
                     onClick={addPreset}
-                    aria-label="プリセットを追加"
                   >
                     ＋
                   </button>
@@ -918,36 +799,27 @@ function App() {
               >
                 {vibrationOn ? "📳 ON" : "📴 OFF"}
               </button>
-<button
-  className="sound-button"
-  onClick={() => {
-    setSoundTheme((prev) =>
-      prev === "calm" ? "tension" : "calm"
-    );
-  }}
-  style={{
-    backgroundColor:
-      soundTheme === "calm"
-        ? "#3b82f6"
-        : "#ef4444",
-  }}
->
-  {soundTheme === "calm"
-    ? "🌙 Calm"
-    : "⚡ Tension"}
-</button>
 
+              <button
+                className="sound-button"
+                onClick={() => {
+                  setSoundTheme((prev) =>
+                    prev === "calm" ? "tension" : "calm"
+                  );
+                }}
+                style={{
+                  backgroundColor:
+                    soundTheme === "calm" ? "#3b82f6" : "#ef4444",
+                }}
+              >
+                {soundTheme === "calm" ? "🌙 Calm" : "⚡ Tension"}
+              </button>
             </div>
 
             {!isPaused && (
               <div className="main-buttons">
                 {running ? (
                   <button
-                    onMouseDown={() => setPressedButton("stop")}
-                    onMouseUp={() => setPressedButton("")}
-                    onMouseLeave={() => setPressedButton("")}
-                    onTouchStart={() => setPressedButton("stop")}
-                    onTouchEnd={() => setPressedButton("")}
                     onClick={() => {
                       setRunning(false);
                       setRemainingOnPause(remainingPrecise);
@@ -961,13 +833,6 @@ function App() {
                       border: "none",
                       borderRadius: "12px",
                       cursor: "pointer",
-                      transition: "0.1s",
-                      filter:
-                        pressedButton === "stop"
-                          ? "brightness(0.8)"
-                          : "brightness(1)",
-                      transform:
-                        pressedButton === "stop" ? "scale(0.95)" : "scale(1)",
                     }}
                   >
                     ⏸ STOP
@@ -976,6 +841,8 @@ function App() {
                   <button
                     disabled={!hasValidStartTime}
                     onClick={() => {
+                      if (!hasValidStartTime) return;
+
                       const currentDuration = isCooldown
                         ? cooldownTime
                         : startTime;
@@ -984,8 +851,6 @@ function App() {
                         remainingPrecise <= 0 ||
                         remainingPrecise >= currentDuration;
 
-                      if (soundOn && isFreshStart) startSound();
-
                       if (isFreshStart) {
                         setRemainingOnPause(currentDuration);
                         setTime(currentDuration);
@@ -993,6 +858,7 @@ function App() {
                         setRemainingOnPause(remainingPrecise);
                       }
 
+                      startSound();
                       setRunning(true);
                       requestWakeLock();
                     }}
@@ -1028,7 +894,6 @@ function App() {
               justifyContent: "center",
               alignItems: "center",
               zIndex: 999,
-              pointerEvents: "auto",
             }}
           >
             <div
@@ -1040,7 +905,6 @@ function App() {
                 padding: "24px 28px",
                 borderRadius: "24px",
                 boxShadow: "0 10px 40px rgba(0,0,0,0.5)",
-                backdropFilter: "blur(8px)",
                 animation: "modalPop 0.18s ease",
               }}
             >
