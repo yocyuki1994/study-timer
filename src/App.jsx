@@ -900,7 +900,7 @@ function App() {
                 </button>
 
                 <button
-                  onClick={() => setShowResetConfirm(true)}
+                  onClick={resetTimer}
                   style={{
                     fontSize: "24px",
                     padding: "14px 32px",
@@ -916,96 +916,6 @@ function App() {
               </div>
             </div>
           )}
-
-        {showResetConfirm && (
-          <div
-            onClick={() => setShowResetConfirm(false)}
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              backgroundColor: "rgba(0,0,0,0.55)",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              zIndex: 1000,
-            }}
-          >
-            <div
-              className="reset-dialog"
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                backgroundColor: "#1f1f1f",
-                animation: "modalPop 0.18s ease",
-                padding: "28px",
-                borderRadius: "24px",
-                boxShadow: "0 10px 40px rgba(0,0,0,0.6)",
-                textAlign: "center",
-                width: "280px",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: "24px",
-                  fontWeight: "bold",
-                  marginBottom: "12px",
-                }}
-              >
-                リセットしますか？
-              </div>
-
-              <div
-                style={{
-                  fontSize: "14px",
-                  color: "#aaa",
-                  marginBottom: "24px",
-                }}
-              >
-                問題番号とタイマーが最初に戻ります
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  gap: "12px",
-                  justifyContent: "center",
-                }}
-              >
-                <button
-                  onClick={resetTimer}
-                  style={{
-                    fontSize: "18px",
-                    padding: "10px 18px",
-                    backgroundColor: "#ef4444",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "999px",
-                    cursor: "pointer",
-                  }}
-                >
-                  リセット
-                </button>
-
-                <button
-                  onClick={() => setShowResetConfirm(false)}
-                  style={{
-                    fontSize: "18px",
-                    padding: "10px 18px",
-                    backgroundColor: "#555",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "999px",
-                    cursor: "pointer",
-                  }}
-                >
-                  キャンセル
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </>
   );
