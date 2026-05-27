@@ -47,6 +47,7 @@ function App() {
   const [remainingOnPause, setRemainingOnPause] = useState(30);
   const [remainingPrecise, setRemainingPrecise] = useState(30);
   const [isCooldown, setIsCooldown] = useState(false);
+  const [finishFlash, setFinishFlash] = useState(false);
 
   const [showPresetModal, setShowPresetModal] = useState(false);
   const [newPresetName, setNewPresetName] = useState("");
@@ -207,6 +208,13 @@ function App() {
       }
 
       if (remaining <= 0) {
+
+        setFinishFlash(true);
+
+setTimeout(() => {
+  setFinishFlash(false);
+}, 450);
+        
         if (!isCooldown && cooldownTime > 0) {
           if (soundOnRef.current) startSound();
 
@@ -315,6 +323,29 @@ function App() {
               transform: scale(1);
             }
           }
+
+          @keyframes finishGlow {
+  0% {
+    box-shadow: 0 0 0px rgba(34, 197, 94, 0);
+    transform: scale(1);
+  }
+
+  50% {
+    box-shadow:
+      0 0 30px rgba(34, 197, 94, 0.9),
+      0 0 60px rgba(34, 197, 94, 0.5);
+    transform: scale(1.04);
+  }
+
+  100% {
+    box-shadow: 0 0 0px rgba(34, 197, 94, 0);
+    transform: scale(1);
+  }
+}
+
+.finish-glow {
+  animation: finishGlow 0.45s ease;
+}
 
           .danger-ring {
             animation: pulse 1s infinite;
@@ -609,9 +640,10 @@ function App() {
 
         <div className="main-layout">
           <div
-            className={`timer-circle ${
-              !isCooldown && time <= 5 ? "danger-ring" : ""
-            }`}
+            className={`timer-circle
+  ${!isCooldown && time <= 5 ? "danger-ring" : ""}
+  ${finishFlash ? "finish-glow" : ""}
+`}
             style={{
               background: `conic-gradient(
                 from 0deg,
