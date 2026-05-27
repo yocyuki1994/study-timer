@@ -46,8 +46,10 @@ function App() {
   const [flash, setFlash] = useState(false);
   const [remainingOnPause, setRemainingOnPause] = useState(30);
   const [remainingPrecise, setRemainingPrecise] = useState(30);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [isCooldown, setIsCooldown] = useState(false);
+
+  const [showPresetModal, setShowPresetModal] = useState(false);
+  const [newPresetName, setNewPresetName] = useState("");
 
   const [presets, setPresets] = useState(() => {
     try {
@@ -63,8 +65,14 @@ function App() {
   const lastBeepSecondRef = useRef(null);
   const soundOnRef = useRef(soundOn);
   const wakeLockRef = useRef(null);
+  const holdTimerRef = useRef(null);
+  const longPressTriggeredRef = useRef(false);
 
   const hasValidStartTime = startTimeInput !== "" && startTime > 0;
+  const isPaused =
+    !running && hasValidStartTime && remainingPrecise > 0 && time !== startTime;
+  const showSettings =
+    !running && hasValidStartTime && time === startTime && !isCooldown;
 
   const formatTime = (seconds) => {
     const safeSeconds = Math.max(0, Number(seconds) || 0);
@@ -87,7 +95,12 @@ function App() {
   const addPreset = () => {
     if (!hasValidStartTime || running) return;
 
-    const name = prompt("セット名を入力してください");
+    setNewPresetName("");
+    setShowPresetModal(true);
+  };
+
+  const savePreset = () => {
+    const name = newPresetName.trim();
 
     if (!name) return;
 
@@ -98,10 +111,35 @@ function App() {
         seconds: startTime,
       },
     ]);
+
+    setShowPresetModal(false);
   };
 
   const deletePreset = (indexToDelete) => {
     setPresets((prev) => prev.filter((_, index) => index !== indexToDelete));
+  };
+
+  const startPresetLongPress = (preset, index) => {
+    if (running) return;
+
+    longPressTriggeredRef.current = false;
+
+    holdTimerRef.current = setTimeout(() => {
+      longPressTriggeredRef.current = true;
+
+      const ok = confirm(`${preset.name} を削除しますか？`);
+
+      if (ok) {
+        deletePreset(index);
+      }
+    }, 650);
+  };
+
+  const endPresetLongPress = () => {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
   };
 
   const requestWakeLock = async () => {
@@ -222,7 +260,6 @@ function App() {
     setRemainingOnPause(startTime);
     setRemainingPrecise(startTime);
     setFlash(false);
-    setShowResetConfirm(false);
     releaseWakeLock();
   };
 
@@ -373,12 +410,15 @@ function App() {
             position: relative;
             min-width: 74px;
             min-height: 48px;
-            padding: 8px 22px 8px 12px;
+            padding: 8px 12px;
             border: none;
             border-radius: 16px;
             color: white;
             cursor: pointer;
             transition: transform 0.14s ease, box-shadow 0.14s ease, background-color 0.14s ease;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
           }
 
           .preset-card.selected {
@@ -410,28 +450,6 @@ function App() {
             color: rgba(255, 255, 255, 0.75);
           }
 
-          .preset-delete {
-            position: absolute;
-            top: -7px;
-            right: -7px;
-            width: 22px;
-            height: 22px;
-            border-radius: 999px;
-            border: none;
-            background-color: #ef4444;
-            color: white;
-            font-size: 14px;
-            line-height: 22px;
-            padding: 0;
-            cursor: pointer;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.35);
-          }
-
-          .preset-delete:disabled {
-            opacity: 0.45;
-            cursor: not-allowed;
-          }
-
           .preset-add {
             min-width: 54px;
             min-height: 48px;
@@ -453,6 +471,16 @@ function App() {
           .preset-add:disabled {
             opacity: 0.45;
             cursor: not-allowed;
+          }
+
+          .sound-button {
+            font-size: 18px;
+            padding: 8px 20px;
+            margin-bottom: 20px;
+            border: none;
+            border-radius: 999px;
+            color: white;
+            cursor: pointer;
           }
 
           .main-buttons {
@@ -516,7 +544,7 @@ function App() {
             .preset-card {
               min-width: 66px;
               min-height: 42px;
-              padding: 7px 20px 7px 10px;
+              padding: 7px 10px;
               border-radius: 14px;
             }
 
@@ -558,7 +586,7 @@ function App() {
               padding: 10px 20px !important;
             }
 
-            .reset-dialog {
+            .preset-modal {
               padding: 22px !important;
               width: 260px !important;
             }
@@ -607,153 +635,138 @@ function App() {
           </div>
 
           <div className="controls-panel">
-            {!running && time === startTime && !isCooldown && (
-  <>
-            <div className="time-inputs">
-              <div className="input-block">
-                <div className="input-label">時間</div>
-                <input
-                  type="number"
-                  min="1"
-                  max="999"
-                  value={startTimeInput}
-                  disabled={running}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setStartTimeInput(value);
+            {showSettings && (
+              <>
+                <div className="time-inputs">
+                  <div className="input-block">
+                    <div className="input-label">時間</div>
+                    <input
+                      type="number"
+                      min="1"
+                      max="999"
+                      value={startTimeInput}
+                      disabled={running}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setStartTimeInput(value);
 
-                    if (value === "") {
-                      setStartTime(0);
-                      setTime(0);
-                      setProgress(100);
-                      setRemainingOnPause(0);
-                      setRemainingPrecise(0);
-                      setIsCooldown(false);
-                      return;
-                    }
+                        if (value === "") {
+                          setStartTime(0);
+                          setTime(0);
+                          setProgress(100);
+                          setRemainingOnPause(0);
+                          setRemainingPrecise(0);
+                          setIsCooldown(false);
+                          return;
+                        }
 
-                    const newTime = Number(value);
+                        const newTime = Number(value);
 
-                    if (newTime < 1) return;
+                        if (newTime < 1) return;
 
-                    applyMainTime(newTime);
-                  }}
-                  style={{
-                    fontSize: "16px",
-                    padding: "6px",
-                    borderRadius: "10px",
-                    width: "64px",
-                    textAlign: "center",
-                    opacity: running ? 0.5 : 1,
-                    cursor: running ? "not-allowed" : "text",
-                    backgroundColor: running ? "#444" : "white",
-                    color: running ? "#999" : "black",
-                    border: "none",
-                  }}
-                />
-              </div>
-
-              <div className="input-block">
-                <div className="input-label">休憩</div>
-                <input
-                  type="number"
-                  min="0"
-                  max="999"
-                  value={cooldownTimeInput}
-                  disabled={running}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setCooldownTimeInput(value);
-
-                    if (value === "") {
-                      setCooldownTime(0);
-                      return;
-                    }
-
-                    const newTime = Number(value);
-
-                    if (newTime < 0) return;
-
-                    setCooldownTime(newTime);
-                  }}
-                  style={{
-                    fontSize: "16px",
-                    padding: "6px",
-                    borderRadius: "10px",
-                    width: "64px",
-                    textAlign: "center",
-                    opacity: running ? 0.5 : 1,
-                    cursor: running ? "not-allowed" : "text",
-                    backgroundColor: running ? "#444" : "white",
-                    color: running ? "#999" : "black",
-                    border: "none",
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="preset-list">
-              {presets.map((preset, index) => {
-                const selected = startTime === preset.seconds;
-
-                return (
-                  <div key={`${preset.name}-${index}`} style={{ position: "relative" }}>
-                    <button
-  className={`preset-card ${selected ? "selected" : "normal"}`}
-  disabled={running}
-  onClick={() => {
-    applyMainTime(preset.seconds);
-  }}
-  onTouchStart={() => {
-    preset.holdTimer = setTimeout(() => {
-      const ok = confirm(`${preset.name} を削除しますか？`);
-
-      if (ok) {
-        deletePreset(index);
-      }
-    }, 600);
-  }}
-  onTouchEnd={() => {
-    clearTimeout(preset.holdTimer);
-  }}
-  onMouseDown={() => {
-    preset.holdTimer = setTimeout(() => {
-      const ok = confirm(`${preset.name} を削除しますか？`);
-
-      if (ok) {
-        deletePreset(index);
-      }
-    }, 600);
-  }}
-  onMouseUp={() => {
-    clearTimeout(preset.holdTimer);
-  }}
-  onMouseLeave={() => {
-    clearTimeout(preset.holdTimer);
-  }}
->
-  <div className="preset-name">{preset.name}</div>
-  <div className="preset-seconds">{preset.seconds}秒</div>
-</button>
-
-                    
+                        applyMainTime(newTime);
+                      }}
+                      style={{
+                        fontSize: "16px",
+                        padding: "6px",
+                        borderRadius: "10px",
+                        width: "64px",
+                        textAlign: "center",
+                        opacity: running ? 0.5 : 1,
+                        cursor: running ? "not-allowed" : "text",
+                        backgroundColor: running ? "#444" : "white",
+                        color: running ? "#999" : "black",
+                        border: "none",
+                      }}
+                    />
                   </div>
-                );
-              })}
 
-              <button
-                className="preset-add"
-                disabled={running || !hasValidStartTime}
-                onClick={addPreset}
-                aria-label="プリセットを追加"
-              >
-                ＋
-              </button>
-            </div>
+                  <div className="input-block">
+                    <div className="input-label">休憩</div>
+                    <input
+                      type="number"
+                      min="0"
+                      max="999"
+                      value={cooldownTimeInput}
+                      disabled={running}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setCooldownTimeInput(value);
+
+                        if (value === "") {
+                          setCooldownTime(0);
+                          return;
+                        }
+
+                        const newTime = Number(value);
+
+                        if (newTime < 0) return;
+
+                        setCooldownTime(newTime);
+                      }}
+                      style={{
+                        fontSize: "16px",
+                        padding: "6px",
+                        borderRadius: "10px",
+                        width: "64px",
+                        textAlign: "center",
+                        opacity: running ? 0.5 : 1,
+                        cursor: running ? "not-allowed" : "text",
+                        backgroundColor: running ? "#444" : "white",
+                        color: running ? "#999" : "black",
+                        border: "none",
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="preset-list">
+                  {presets.map((preset, index) => {
+                    const selected = startTime === preset.seconds;
+
+                    return (
+                      <button
+                        key={`${preset.name}-${index}`}
+                        className={`preset-card ${
+                          selected ? "selected" : "normal"
+                        }`}
+                        disabled={running}
+                        onClick={() => {
+                          if (longPressTriggeredRef.current) {
+                            longPressTriggeredRef.current = false;
+                            return;
+                          }
+
+                          applyMainTime(preset.seconds);
+                        }}
+                        onTouchStart={() => startPresetLongPress(preset, index)}
+                        onTouchEnd={endPresetLongPress}
+                        onTouchCancel={endPresetLongPress}
+                        onMouseDown={() => startPresetLongPress(preset, index)}
+                        onMouseUp={endPresetLongPress}
+                        onMouseLeave={endPresetLongPress}
+                      >
+                        <div className="preset-name">{preset.name}</div>
+                        <div className="preset-seconds">
+                          {preset.seconds}秒
+                        </div>
+                      </button>
+                    );
+                  })}
+
+                  <button
+                    className="preset-add"
+                    disabled={running || !hasValidStartTime}
+                    onClick={addPreset}
+                    aria-label="プリセットを追加"
+                  >
+                    ＋
+                  </button>
+                </div>
               </>
-)}
+            )}
 
-<button
+            <button
               className="sound-button"
               onClick={() => {
                 setSoundOn((v) => {
@@ -763,132 +776,226 @@ function App() {
                 });
               }}
               style={{
-                fontSize: "18px",
-                padding: "8px 20px",
-                marginBottom: "20px",
                 backgroundColor: soundOn ? "#22c55e" : "#555",
-                color: "white",
-                border: "none",
-                borderRadius: "999px",
-                cursor: "pointer",
               }}
             >
               {soundOn ? "🔊 ON" : "🔇 OFF"}
             </button>
 
-            <div className="main-buttons">
+            {!isPaused && (
+              <div className="main-buttons">
+                {running ? (
+                  <button
+                    onMouseDown={() => setPressedButton("stop")}
+                    onMouseUp={() => setPressedButton("")}
+                    onMouseLeave={() => setPressedButton("")}
+                    onTouchStart={() => setPressedButton("stop")}
+                    onTouchEnd={() => setPressedButton("")}
+                    onClick={() => {
+                      setRunning(false);
+                      setRemainingOnPause(remainingPrecise);
+                      releaseWakeLock();
+                    }}
+                    style={{
+                      fontSize: "20px",
+                      padding: "10px 22px",
+                      backgroundColor: "#ef4444",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "12px",
+                      cursor: "pointer",
+                      transition: "0.1s",
+                      filter:
+                        pressedButton === "stop"
+                          ? "brightness(0.8)"
+                          : "brightness(1)",
+                      transform:
+                        pressedButton === "stop" ? "scale(0.95)" : "scale(1)",
+                    }}
+                  >
+                    ⏸ STOP
+                  </button>
+                ) : (
+                  <button
+                    disabled={!hasValidStartTime}
+                    onClick={() => {
+                      const currentDuration = isCooldown
+                        ? cooldownTime
+                        : startTime;
+
+                      const isFreshStart =
+                        remainingPrecise <= 0 ||
+                        remainingPrecise >= currentDuration;
+
+                      if (soundOn && isFreshStart) startSound();
+
+                      if (isFreshStart) {
+                        setRemainingOnPause(currentDuration);
+                        setTime(currentDuration);
+                      } else {
+                        setRemainingOnPause(remainingPrecise);
+                      }
+
+                      setRunning(true);
+                      requestWakeLock();
+                    }}
+                    style={{
+                      fontSize: "20px",
+                      padding: "10px 22px",
+                      backgroundColor: "#22c55e",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "12px",
+                      cursor: !hasValidStartTime ? "not-allowed" : "pointer",
+                      opacity: !hasValidStartTime ? 0.5 : 1,
+                    }}
+                  >
+                    ▶ START
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {isPaused && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              backgroundColor: "rgba(0,0,0,0.35)",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              zIndex: 999,
+              pointerEvents: "auto",
+            }}
+          >
+            <div
+              className="paused-panel"
+              style={{
+                display: "flex",
+                gap: "20px",
+                backgroundColor: "rgba(30,30,30,0.95)",
+                padding: "24px 28px",
+                borderRadius: "24px",
+                boxShadow: "0 10px 40px rgba(0,0,0,0.5)",
+                backdropFilter: "blur(8px)",
+                animation: "modalPop 0.18s ease",
+              }}
+            >
               <button
-                disabled={running || !hasValidStartTime}
                 onClick={() => {
-                  const currentDuration = isCooldown
-                    ? cooldownTime
-                    : startTime;
-
-                  const isFreshStart =
-                    remainingPrecise <= 0 ||
-                    remainingPrecise >= currentDuration;
-
-                  if (soundOn && isFreshStart) startSound();
-
-                  if (isFreshStart) {
-                    setRemainingOnPause(currentDuration);
-                    setTime(currentDuration);
-                  } else {
-                    setRemainingOnPause(remainingPrecise);
-                  }
-
                   setRunning(true);
                   requestWakeLock();
                 }}
                 style={{
-                  fontSize: "20px",
-                  padding: "10px 22px",
+                  fontSize: "24px",
+                  padding: "14px 32px",
                   backgroundColor: "#22c55e",
                   color: "white",
                   border: "none",
-                  borderRadius: "12px",
-                  cursor:
-                    running || !hasValidStartTime ? "not-allowed" : "pointer",
-                  opacity: running || !hasValidStartTime ? 0.5 : 1,
+                  borderRadius: "999px",
+                  cursor: "pointer",
                 }}
               >
-                ▶ START
+                ▶ 再開
               </button>
 
               <button
-                onMouseDown={() => setPressedButton("stop")}
-                onMouseUp={() => setPressedButton("")}
-                onMouseLeave={() => setPressedButton("")}
-                onTouchStart={() => setPressedButton("stop")}
-                onTouchEnd={() => setPressedButton("")}
-                onClick={() => {
-                  setRunning(false);
-                  setRemainingOnPause(remainingPrecise);
-                  releaseWakeLock();
-                }}
+                onClick={resetTimer}
                 style={{
-                  fontSize: "20px",
-                  padding: "10px 22px",
-                  backgroundColor: "#ef4444",
+                  fontSize: "24px",
+                  padding: "14px 32px",
+                  backgroundColor: "#666",
                   color: "white",
                   border: "none",
-                  borderRadius: "12px",
+                  borderRadius: "999px",
                   cursor: "pointer",
-                  transition: "0.1s",
-                  filter:
-                    pressedButton === "stop"
-                      ? "brightness(0.8)"
-                      : "brightness(1)",
-                  transform:
-                    pressedButton === "stop" ? "scale(0.95)" : "scale(1)",
                 }}
               >
-                ⏸ STOP
+                ↺ リセット
               </button>
             </div>
           </div>
-        </div>
+        )}
 
-        {!running &&
-          hasValidStartTime &&
-          remainingPrecise > 0 &&
-          time !== startTime && (
+        {showPresetModal && (
+          <div
+            onClick={() => setShowPresetModal(false)}
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              backgroundColor: "rgba(0,0,0,0.55)",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              zIndex: 1000,
+            }}
+          >
             <div
+              className="preset-modal"
+              onClick={(e) => e.stopPropagation()}
               style={{
-                position: "fixed",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: "100%",
-                backgroundColor: "rgba(0,0,0,0.35)",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                zIndex: 999,
-                pointerEvents: "auto",
+                backgroundColor: "#1f1f1f",
+                padding: "24px",
+                borderRadius: "24px",
+                width: "280px",
+                textAlign: "center",
+                boxShadow: "0 10px 40px rgba(0,0,0,0.6)",
+                animation: "modalPop 0.18s ease",
               }}
             >
               <div
-                className="paused-panel"
+                style={{
+                  fontSize: "22px",
+                  fontWeight: "bold",
+                  marginBottom: "16px",
+                }}
+              >
+                プリセット追加
+              </div>
+
+              <input
+                autoFocus
+                value={newPresetName}
+                onChange={(e) => setNewPresetName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    savePreset();
+                  }
+                }}
+                placeholder="セット名"
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  fontSize: "18px",
+                  padding: "12px",
+                  borderRadius: "12px",
+                  border: "none",
+                  marginBottom: "18px",
+                  textAlign: "center",
+                }}
+              />
+
+              <div
                 style={{
                   display: "flex",
-                  gap: "20px",
-                  backgroundColor: "rgba(30,30,30,0.95)",
-                  padding: "24px 28px",
-                  borderRadius: "24px",
-                  boxShadow: "0 10px 40px rgba(0,0,0,0.5)",
-                  backdropFilter: "blur(8px)",
-                  animation: "modalPop 0.18s ease",
+                  gap: "12px",
+                  justifyContent: "center",
                 }}
               >
                 <button
-                  onClick={() => {
-                    setRunning(true);
-                    requestWakeLock();
-                  }}
+                  onClick={savePreset}
                   style={{
-                    fontSize: "24px",
-                    padding: "14px 32px",
+                    fontSize: "17px",
+                    padding: "10px 18px",
                     backgroundColor: "#22c55e",
                     color: "white",
                     border: "none",
@@ -896,26 +1003,27 @@ function App() {
                     cursor: "pointer",
                   }}
                 >
-                  ▶ 再開
+                  保存
                 </button>
 
                 <button
-                  onClick={resetTimer}
+                  onClick={() => setShowPresetModal(false)}
                   style={{
-                    fontSize: "24px",
-                    padding: "14px 32px",
-                    backgroundColor: "#666",
+                    fontSize: "17px",
+                    padding: "10px 18px",
+                    backgroundColor: "#555",
                     color: "white",
                     border: "none",
                     borderRadius: "999px",
                     cursor: "pointer",
                   }}
                 >
-                  ↺ リセット
+                  キャンセル
                 </button>
               </div>
             </div>
-          )}
+          </div>
+        )}
       </div>
     </>
   );
