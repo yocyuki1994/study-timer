@@ -22,8 +22,21 @@ const playSound = (frequency, duration, volume = 0.3) => {
   oscillator.stop(audioContext.currentTime + duration);
 };
 
-const startSound = () => playSound(700, 0.15);
-const beep = () => playSound(1000, 0.08);
+const startSound = () => {
+  if (soundTheme === "tension") {
+    playAudio("/tension-start.mp3", 0.9);
+  } else {
+    playAudio("/calm-start.mp3", 0.9);
+  }
+};
+
+const beep = () => {
+  if (soundTheme === "tension") {
+    playAudio("/tension-beep.mp3", 0.7);
+  } else {
+    playAudio("/calm-beep.mp3", 0.7);
+  }
+};
 
 const defaultPresets = [
   { name: "英単語", seconds: 7 },
@@ -49,6 +62,7 @@ function App() {
   const [remainingOnPause, setRemainingOnPause] = useState(30);
   const [remainingPrecise, setRemainingPrecise] = useState(30);
   const [isCooldown, setIsCooldown] = useState(false);
+  const [soundTheme, setSoundTheme] = useState("calm");
 
   const [showPresetModal, setShowPresetModal] = useState(false);
   const [newPresetName, setNewPresetName] = useState("");
@@ -904,6 +918,25 @@ function App() {
               >
                 {vibrationOn ? "📳 ON" : "📴 OFF"}
               </button>
+<button
+  className="sound-button"
+  onClick={() => {
+    setSoundTheme((prev) =>
+      prev === "calm" ? "tension" : "calm"
+    );
+  }}
+  style={{
+    backgroundColor:
+      soundTheme === "calm"
+        ? "#3b82f6"
+        : "#ef4444",
+  }}
+>
+  {soundTheme === "calm"
+    ? "🌙 Calm"
+    : "⚡ Tension"}
+</button>
+
             </div>
 
             {!isPaused && (
