@@ -697,27 +697,49 @@ function App() {
                 return (
                   <div key={`${preset.name}-${index}`} style={{ position: "relative" }}>
                     <button
-                      className={`preset-card ${selected ? "selected" : "normal"}`}
+  className={`preset-card ${selected ? "selected" : "normal"}`}
+  disabled={running}
+  onClick={() => {
+    applyMainTime(preset.seconds);
+  }}
+  onTouchStart={() => {
+    preset.holdTimer = setTimeout(() => {
+      const ok = confirm(`${preset.name} を削除しますか？`);
+
+      if (ok) {
+        deletePreset(index);
+      }
+    }, 600);
+  }}
+  onTouchEnd={() => {
+    clearTimeout(preset.holdTimer);
+  }}
+  onMouseDown={() => {
+    preset.holdTimer = setTimeout(() => {
+      const ok = confirm(`${preset.name} を削除しますか？`);
+
+      if (ok) {
+        deletePreset(index);
+      }
+    }, 600);
+  }}
+  onMouseUp={() => {
+    clearTimeout(preset.holdTimer);
+  }}
+  onMouseLeave={() => {
+    clearTimeout(preset.holdTimer);
+  }}
+>
                       disabled={running}
                       onClick={() => {
                         applyMainTime(preset.seconds);
                       }}
-                    >
+                    
                       <div className="preset-name">{preset.name}</div>
                       <div className="preset-seconds">{preset.seconds}秒</div>
                     </button>
 
-                    <button
-                      className="preset-delete"
-                      disabled={running}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deletePreset(index);
-                      }}
-                      aria-label={`${preset.name}を削除`}
-                    >
-                      ×
-                    </button>
+                    
                   </div>
                 );
               })}
