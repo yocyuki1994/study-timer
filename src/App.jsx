@@ -607,7 +607,7 @@ function App() {
           </div>
 
           <div className="controls-panel">
-            {!running && (
+            {!running && time === startTime && !isCooldown && (
   <>
             <div className="time-inputs">
               <div className="input-block">
