@@ -730,14 +730,9 @@ function App() {
     clearTimeout(preset.holdTimer);
   }}
 >
-                      disabled={running}
-                      onClick={() => {
-                        applyMainTime(preset.seconds);
-                      }}
-                    
-                      <div className="preset-name">{preset.name}</div>
-                      <div className="preset-seconds">{preset.seconds}秒</div>
-                    </button>
+  <div className="preset-name">{preset.name}</div>
+  <div className="preset-seconds">{preset.seconds}秒</div>
+</button>
 
                     
                   </div>
