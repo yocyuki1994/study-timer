@@ -750,8 +750,10 @@ function App() {
                 ＋
               </button>
             </div>
+              </>
+)}
 
-            <button
+<button
               className="sound-button"
               onClick={() => {
                 setSoundOn((v) => {
@@ -773,8 +775,6 @@ function App() {
             >
               {soundOn ? "🔊 ON" : "🔇 OFF"}
             </button>
-              </>
-)}
 
             <div className="main-buttons">
               <button
