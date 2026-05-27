@@ -913,19 +913,33 @@ function App() {
               </button>
 
               <button
-                className="sound-button"
-                onClick={() => {
-                  setSoundTheme((prev) =>
-                    prev === "calm" ? "tension" : "calm"
-                  );
-                }}
-                style={{
-                  backgroundColor:
-                    soundTheme === "calm" ? "#3b82f6" : "#ef4444",
-                }}
-              >
-                {soundTheme === "calm" ? "🌙 Calm" : "⚡ Tension"}
-              </button>
+  className="sound-button"
+  disabled={!soundOn}
+  onClick={() => {
+    if (!soundOn) return;
+
+    setSoundTheme((prev) =>
+      prev === "calm" ? "tension" : "calm"
+    );
+  }}
+  style={{
+    backgroundColor: !soundOn
+      ? "#555"
+      : soundTheme === "calm"
+      ? "#3b82f6"
+      : "#ef4444",
+
+    opacity: soundOn ? 1 : 0.5,
+
+    cursor: soundOn
+      ? "pointer"
+      : "not-allowed",
+  }}
+>
+  {soundTheme === "calm"
+    ? "🌙 Calm"
+    : "⚡ Tension"}
+</button>
             </div>
 
             {!isPaused && (
