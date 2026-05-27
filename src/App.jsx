@@ -686,7 +686,11 @@ function App() {
           style={{
             fontSize: "40px",
             animation: "pop 0.4s ease",
-            color: isCooldown ? "#22c55e" : "white",
+            color: isCooldown
+  ? "#3b82f6"
+  : hasValidStartTime && time <= 5
+  ? "red"
+  : "white",
             textShadow: isCooldown
               ? "0 0 18px rgba(59,130,246,0.9)"
               : "none",
@@ -698,7 +702,7 @@ function App() {
         <div className="main-layout">
           <div
             className={`timer-circle
-              ${!isCooldown && time <= 5 ? "danger-ring" : ""}
+  ${!isCooldown && hasValidStartTime && time <= 5 ? "danger-ring" : ""}
               ${finishFlash ? "finish-glow" : ""}
               ${isCooldown ? "cooldown-glow" : ""}
             `}
