@@ -408,6 +408,12 @@ function App() {
     <>
       <style>
         {`
+          body {
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+          }
+
           @keyframes pop {
             0% {
               transform: scale(0.5);
@@ -521,6 +527,9 @@ function App() {
             padding-bottom: calc(20px + env(safe-area-inset-bottom));
             box-sizing: border-box;
             transition: background-color 0.15s;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
           }
 
           .app-root.flash {
@@ -592,6 +601,10 @@ function App() {
             font-size: 13px;
             font-weight: bold;
             cursor: pointer;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            touch-action: manipulation;
           }
 
           .adjust-label-button.off {
@@ -608,6 +621,9 @@ function App() {
             text-align: center;
             font-size: 18px;
             font-weight: bold;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
           }
 
           .adjust-button {
@@ -620,6 +636,10 @@ function App() {
             font-size: 18px;
             font-weight: bold;
             cursor: pointer;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            touch-action: manipulation;
           }
 
           .preset-list {
@@ -644,6 +664,7 @@ function App() {
             -webkit-user-select: none;
             user-select: none;
             -webkit-touch-callout: none;
+            touch-action: manipulation;
           }
 
           .preset-card.selected {
@@ -684,6 +705,10 @@ function App() {
             color: white;
             font-size: 26px;
             cursor: pointer;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            touch-action: manipulation;
           }
 
           .preset-add:disabled {
@@ -706,6 +731,10 @@ function App() {
             border-radius: 999px;
             color: white;
             cursor: pointer;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            touch-action: manipulation;
           }
 
           .main-buttons {
@@ -910,9 +939,10 @@ function App() {
                       }
                       onMouseUp={stopHoldChange}
                       onMouseLeave={stopHoldChange}
-                      onTouchStart={() =>
-                        startHoldChange(() => changeMainTime(-10))
-                      }
+                      onTouchStart={(e) => {
+                        e.preventDefault();
+                        startHoldChange(() => changeMainTime(-10));
+                      }}
                       onTouchEnd={stopHoldChange}
                       onTouchCancel={stopHoldChange}
                     >
@@ -929,9 +959,10 @@ function App() {
                       }
                       onMouseUp={stopHoldChange}
                       onMouseLeave={stopHoldChange}
-                      onTouchStart={() =>
-                        startHoldChange(() => changeMainTime(10))
-                      }
+                      onTouchStart={(e) => {
+                        e.preventDefault();
+                        startHoldChange(() => changeMainTime(10));
+                      }}
                       onTouchEnd={stopHoldChange}
                       onTouchCancel={stopHoldChange}
                     >
@@ -961,9 +992,10 @@ function App() {
                           }
                           onMouseUp={stopHoldChange}
                           onMouseLeave={stopHoldChange}
-                          onTouchStart={() =>
-                            startHoldChange(() => changeCooldownTime(-10))
-                          }
+                          onTouchStart={(e) => {
+                            e.preventDefault();
+                            startHoldChange(() => changeCooldownTime(-10));
+                          }}
                           onTouchEnd={stopHoldChange}
                           onTouchCancel={stopHoldChange}
                         >
@@ -982,9 +1014,10 @@ function App() {
                           }
                           onMouseUp={stopHoldChange}
                           onMouseLeave={stopHoldChange}
-                          onTouchStart={() =>
-                            startHoldChange(() => changeCooldownTime(10))
-                          }
+                          onTouchStart={(e) => {
+                            e.preventDefault();
+                            startHoldChange(() => changeCooldownTime(10));
+                          }}
                           onTouchEnd={stopHoldChange}
                           onTouchCancel={stopHoldChange}
                         >
