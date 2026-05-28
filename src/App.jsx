@@ -46,10 +46,9 @@ function App() {
   const holdTimerRef = useRef(null);
   const longPressTriggeredRef = useRef(false);
 
+  const audioContextRef = useRef(null);
   const calmBeepRef = useRef(null);
-  const calmStartRef = useRef(null);
   const tensionBeepRef = useRef(null);
-  const tensionStartRef = useRef(null);
 
   const hasValidStartTime = startTimeInput !== "" && startTime > 0;
 
@@ -58,50 +57,64 @@ function App() {
 
   const showSettings = !running && !isPaused && !isCooldown;
 
+  const prepareAudioContext = async () => {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new AudioContext();
+    }
+
+    if (audioContextRef.current.state === "suspended") {
+      await audioContextRef.current.resume();
+    }
+  };
+
+  const playInstantTone = async (frequency, duration, volume = 0.3) => {
+    if (!soundOnRef.current) return;
+
+    await prepareAudioContext();
+
+    const audioContext = audioContextRef.current;
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    gainNode.gain.value = volume;
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    oscillator.frequency.value = frequency;
+    oscillator.type = "sine";
+    oscillator.start();
+
+    gainNode.gain.exponentialRampToValueAtTime(
+      0.0001,
+      audioContext.currentTime + duration
+    );
+
+    oscillator.stop(audioContext.currentTime + duration);
+  };
+
+  const startSound = () => {
+    if (!soundOnRef.current) return;
+
+    if (soundThemeRef.current === "tension") {
+      playInstantTone(1200, 0.12, 0.35);
+    } else {
+      playInstantTone(700, 0.15, 0.3);
+    }
+  };
+
   const playPreparedAudio = (audio, volume = 1) => {
-  if (!audio) return;
+    if (!audio || !soundOnRef.current) return;
 
-  audio.pause();
-  audio.currentTime = 0;
-  audio.volume = volume;
+    audio.pause();
+    audio.currentTime = 0;
+    audio.volume = volume;
 
-  const playPromise = audio.play();
+    const playPromise = audio.play();
 
-  if (playPromise) {
-    playPromise.catch(() => {});
-  }
-};
-
- const playInstantTone = (frequency, duration, volume = 0.3) => {
-  const audioContext = new AudioContext();
-  const oscillator = audioContext.createOscillator();
-  const gainNode = audioContext.createGain();
-
-  gainNode.gain.value = volume;
-  oscillator.connect(gainNode);
-  gainNode.connect(audioContext.destination);
-
-  oscillator.frequency.value = frequency;
-  oscillator.type = "sine";
-  oscillator.start();
-
-  gainNode.gain.exponentialRampToValueAtTime(
-    0.0001,
-    audioContext.currentTime + duration
-  );
-
-  oscillator.stop(audioContext.currentTime + duration);
-};
-
-const startSound = () => {
-  if (!soundOnRef.current) return;
-
-  if (soundThemeRef.current === "tension") {
-    playInstantTone(1200, 0.12, 0.35);
-  } else {
-    playInstantTone(700, 0.15, 0.3);
-  }
-};
+    if (playPromise) {
+      playPromise.catch(() => {});
+    }
+  };
 
   const beep = () => {
     if (!soundOnRef.current) return;
@@ -114,22 +127,16 @@ const startSound = () => {
     playPreparedAudio(audio, 0.75);
   };
 
-  const unlockAudio = () => {
-  const audios = [
-    calmBeepRef.current,
-    calmStartRef.current,
-    tensionBeepRef.current,
-    tensionStartRef.current,
-  ];
+  const unlockAudio = async () => {
+    await prepareAudioContext();
 
-  audios.forEach((audio) => {
-    if (!audio) return;
+    const audios = [calmBeepRef.current, tensionBeepRef.current];
 
-    audio.pause();
-    audio.currentTime = 0;
-    audio.load();
-  });
-};
+    audios.forEach((audio) => {
+      if (!audio) return;
+      audio.load();
+    });
+  };
 
   const triggerFinishGlow = () => {
     setFinishFlash(true);
@@ -226,19 +233,13 @@ const startSound = () => {
 
   useEffect(() => {
     calmBeepRef.current = new Audio("/calm-beep.wav");
-    calmStartRef.current = new Audio("/calm-start.wav");
     tensionBeepRef.current = new Audio("/tension-beep.wav");
-    tensionStartRef.current = new Audio("/tension-start.wav");
 
     calmBeepRef.current.preload = "auto";
-    calmStartRef.current.preload = "auto";
     tensionBeepRef.current.preload = "auto";
-    tensionStartRef.current.preload = "auto";
 
     calmBeepRef.current.load();
-    calmStartRef.current.load();
     tensionBeepRef.current.load();
-    tensionStartRef.current.load();
   }, []);
 
   useEffect(() => {
@@ -336,23 +337,18 @@ const startSound = () => {
   ]);
 
   useEffect(() => {
-  if (
-    !isCooldown &&
-    hasValidStartTime &&
-    time <= 5 &&
-    time > 0
-  ) {
-    setFlash(true);
+    if (!isCooldown && hasValidStartTime && time <= 5 && time > 0) {
+      setFlash(true);
 
-    const timeout = setTimeout(() => {
+      const timeout = setTimeout(() => {
+        setFlash(false);
+      }, 150);
+
+      return () => clearTimeout(timeout);
+    } else {
       setFlash(false);
-    }, 150);
-
-    return () => clearTimeout(timeout);
-  } else {
-    setFlash(false);
-  }
-}, [time, isCooldown, hasValidStartTime]);
+    }
+  }, [time, isCooldown, hasValidStartTime]);
 
   const resetTimer = () => {
     setRunning(false);
@@ -947,33 +943,27 @@ const startSound = () => {
               </button>
 
               <button
-  className="sound-button"
-  disabled={!soundOn}
-  onClick={() => {
-    if (!soundOn) return;
+                className="sound-button"
+                disabled={!soundOn}
+                onClick={() => {
+                  if (!soundOn) return;
 
-    setSoundTheme((prev) =>
-      prev === "calm" ? "tension" : "calm"
-    );
-  }}
-  style={{
-    backgroundColor: !soundOn
-      ? "#555"
-      : soundTheme === "calm"
-      ? "#3b82f6"
-      : "#ef4444",
-
-    opacity: soundOn ? 1 : 0.5,
-
-    cursor: soundOn
-      ? "pointer"
-      : "not-allowed",
-  }}
->
-  {soundTheme === "calm"
-    ? "🌙 Calm"
-    : "⚡ Tension"}
-</button>
+                  setSoundTheme((prev) =>
+                    prev === "calm" ? "tension" : "calm"
+                  );
+                }}
+                style={{
+                  backgroundColor: !soundOn
+                    ? "#555"
+                    : soundTheme === "calm"
+                    ? "#3b82f6"
+                    : "#ef4444",
+                  opacity: soundOn ? 1 : 0.5,
+                  cursor: soundOn ? "pointer" : "not-allowed",
+                }}
+              >
+                {soundTheme === "calm" ? "🌙 Calm" : "⚡ Tension"}
+              </button>
             </div>
 
             {!isPaused && (
@@ -1012,10 +1002,10 @@ const startSound = () => {
                 ) : (
                   <button
                     disabled={!hasValidStartTime}
-                    onClick={() => {
+                    onClick={async () => {
                       if (!hasValidStartTime) return;
 
-                      unlockAudio();
+                      await unlockAudio();
 
                       const currentDuration = isCooldown
                         ? cooldownTime
