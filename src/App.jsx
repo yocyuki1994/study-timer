@@ -92,15 +92,15 @@ function App() {
     oscillator.stop(audioContext.currentTime + duration);
   };
 
-  const startSound = () => {
-    if (!soundOnRef.current) return;
+  const startSound = async () => {
+  if (!soundOnRef.current) return;
 
-    if (soundThemeRef.current === "tension") {
-      playInstantTone(1200, 0.12, 0.35);
-    } else {
-      playInstantTone(700, 0.15, 0.3);
-    }
-  };
+  if (soundThemeRef.current === "tension") {
+    await playInstantTone(1200, 0.12, 0.35);
+  } else {
+    await playInstantTone(700, 0.15, 0.3);
+  }
+};
 
   const playPreparedAudio = (audio, volume = 1) => {
     if (!audio || !soundOnRef.current) return;
