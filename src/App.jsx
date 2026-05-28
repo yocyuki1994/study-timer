@@ -7,26 +7,67 @@ const defaultPresets = [
 ];
 
 function App() {
-  const [startTime, setStartTime] = useState(30);
-  const [cooldownTime, setCooldownTime] = useState(5);
-  const [cooldownOn, setCooldownOn] = useState(false);
+import { useEffect, useRef, useState } from "react";
 
-  const [targetOn, setTargetOn] = useState(false);
-  const [targetQuestions, setTargetQuestions] = useState(10);
+const defaultPresets = [
+  { name: "英単語", seconds: 7 },
+  { name: "標準", seconds: 30 },
+  { name: "じっくり", seconds: 90 },
+];
+
+const getSavedNumber = (key, fallback) => {
+  const saved = Number(localStorage.getItem(key));
+  return Number.isFinite(saved) && saved > 0 ? saved : fallback;
+};
+
+const getSavedBoolean = (key, fallback) => {
+  const saved = localStorage.getItem(key);
+  if (saved === null) return fallback;
+  return saved === "true";
+};
+
+function App() {
+  const [startTime, setStartTime] = useState(() =>
+    getSavedNumber("qTimerStartTime", 30)
+  );
+  const [cooldownTime, setCooldownTime] = useState(() =>
+    getSavedNumber("qTimerCooldownTime", 5)
+  );
+  const [cooldownOn, setCooldownOn] = useState(() =>
+    getSavedBoolean("qTimerCooldownOn", false)
+  );
+
+  const [targetOn, setTargetOn] = useState(() =>
+    getSavedBoolean("qTimerTargetOn", false)
+  );
+  const [targetQuestions, setTargetQuestions] = useState(() =>
+    getSavedNumber("qTimerTargetQuestions", 10)
+  );
   const [completed, setCompleted] = useState(false);
   const [completedQuestions, setCompletedQuestions] = useState(0);
 
-  const [time, setTime] = useState(30);
+  const [time, setTime] = useState(() =>
+    getSavedNumber("qTimerStartTime", 30)
+  );
   const [progress, setProgress] = useState(100);
   const [question, setQuestion] = useState(1);
   const [running, setRunning] = useState(false);
-  const [soundOn, setSoundOn] = useState(true);
-  const [soundTheme, setSoundTheme] = useState("calm");
+  const [soundOn, setSoundOn] = useState(() =>
+    getSavedBoolean("qTimerSoundOn", true)
+  );
+  const [soundTheme, setSoundTheme] = useState(() => {
+    const saved = localStorage.getItem("qTimerSoundTheme");
+    return saved === "tension" ? "tension" : "calm";
+  });
   const [pressedButton, setPressedButton] = useState("");
   const [flash, setFlash] = useState(false);
   const [finishFlash, setFinishFlash] = useState(false);
-  const [remainingOnPause, setRemainingOnPause] = useState(30);
-  const [remainingPrecise, setRemainingPrecise] = useState(30);
+  const [remainingOnPause, setRemainingOnPause] = useState(() =>
+    getSavedNumber("qTimerStartTime", 30)
+  );
+  const [remainingPrecise, setRemainingPrecise] = useState(() =>
+    getSavedNumber("qTimerStartTime", 30)
+  );
   const [isCooldown, setIsCooldown] = useState(false);
 
   const [showPresetModal, setShowPresetModal] = useState(false);
@@ -72,7 +113,6 @@ function App() {
 
   const prepareAudioContext = async () => {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-
     if (!AudioContextClass) return;
 
     if (!audioContextRef.current) {
@@ -88,7 +128,6 @@ function App() {
     if (!soundOnRef.current) return;
 
     await prepareAudioContext();
-
     if (!audioContextRef.current) return;
 
     const audioContext = audioContextRef.current;
@@ -129,7 +168,6 @@ function App() {
     audio.volume = volume;
 
     const playPromise = audio.play();
-
     if (playPromise) {
       playPromise.catch(() => {});
     }
@@ -325,6 +363,34 @@ function App() {
   }, []);
 
   useEffect(() => {
+    localStorage.setItem("qTimerStartTime", String(startTime));
+  }, [startTime]);
+
+  useEffect(() => {
+    localStorage.setItem("qTimerCooldownTime", String(cooldownTime));
+  }, [cooldownTime]);
+
+  useEffect(() => {
+    localStorage.setItem("qTimerCooldownOn", String(cooldownOn));
+  }, [cooldownOn]);
+
+  useEffect(() => {
+    localStorage.setItem("qTimerTargetOn", String(targetOn));
+  }, [targetOn]);
+
+  useEffect(() => {
+    localStorage.setItem("qTimerTargetQuestions", String(targetQuestions));
+  }, [targetQuestions]);
+
+  useEffect(() => {
+    localStorage.setItem("qTimerSoundOn", String(soundOn));
+  }, [soundOn]);
+
+  useEffect(() => {
+    localStorage.setItem("qTimerSoundTheme", soundTheme);
+  }, [soundTheme]);
+
+  useEffect(() => {
     localStorage.setItem("qTimerPresets", JSON.stringify(presets));
   }, [presets]);
 
@@ -449,6 +515,29 @@ function App() {
       setFlash(false);
     }
   }, [time, isCooldown, hasValidStartTime]);
+
+  const resetTimer = () => {
+    setRunning(false);
+    setCompleted(false);
+    setCompletedQuestions(0);
+    setIsCooldown(false);
+    setTime(startTime);
+    setProgress(100);
+    setQuestion(1);
+    setRemainingOnPause(startTime);
+    setRemainingPrecise(startTime);
+    setFlash(false);
+    releaseWakeLock();
+  };
+
+  return (
+    <>
+      {/* ここから下は今の表示部分と同じなので、そのまま今の return 内を使ってOK */}
+    </>
+  );
+}
+
+export default App;
 
   const resetTimer = () => {
     setRunning(false);
@@ -1155,6 +1244,68 @@ function App() {
                         </button>
                       </div>
 
+                       <div className="fixed-control-row">
+                        <div className="side-slot">
+                          {targetOn && (
+                            <button
+                              className="adjust-button"
+                              onClick={() =>
+                                handleAdjustClick(() =>
+                                  changeTargetQuestions(-1)
+                                )
+                              }
+                              onPointerDown={(e) => {
+                                e.preventDefault();
+                                startHoldChange(() =>
+                                  changeTargetQuestions(-10)
+                                );
+                              }}
+                              onPointerUp={stopHoldChange}
+                              onPointerLeave={stopHoldChange}
+                              onPointerCancel={stopHoldChange}
+                            >
+                              －
+                            </button>
+                          )}
+                        </div>
+
+                        <button
+                          className={`adjust-label-button ${
+                            targetOn ? "on" : "off"
+                          }`}
+                          onClick={() => {
+                            setTargetOn((v) => !v);
+                            setCompleted(false);
+                            setCompletedQuestions(0);
+                          }}
+                        >
+                          目標
+                        </button>
+                        <div className="side-slot">
+                          {targetOn && (
+                            <button
+                              className="adjust-button"
+                              onClick={() =>
+                                handleAdjustClick(() =>
+                                  changeTargetQuestions(1)
+                                )
+                              }
+                              onPointerDown={(e) => {
+                                e.preventDefault();
+                                startHoldChange(() =>
+                                  changeTargetQuestions(10)
+                                );
+                              }}
+                              onPointerUp={stopHoldChange}
+                              onPointerLeave={stopHoldChange}
+                              onPointerCancel={stopHoldChange}
+                            >
+                              ＋
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
                       <div className="fixed-control-row">
                         <div className="side-slot">
                           {cooldownOn && (
@@ -1216,68 +1367,7 @@ function App() {
                         </div>
                       </div>
 
-                      <div className="fixed-control-row">
-                        <div className="side-slot">
-                          {targetOn && (
-                            <button
-                              className="adjust-button"
-                              onClick={() =>
-                                handleAdjustClick(() =>
-                                  changeTargetQuestions(-1)
-                                )
-                              }
-                              onPointerDown={(e) => {
-                                e.preventDefault();
-                                startHoldChange(() =>
-                                  changeTargetQuestions(-10)
-                                );
-                              }}
-                              onPointerUp={stopHoldChange}
-                              onPointerLeave={stopHoldChange}
-                              onPointerCancel={stopHoldChange}
-                            >
-                              －
-                            </button>
-                          )}
-                        </div>
-
-                        <button
-                          className={`adjust-label-button ${
-                            targetOn ? "on" : "off"
-                          }`}
-                          onClick={() => {
-                            setTargetOn((v) => !v);
-                            setCompleted(false);
-                            setCompletedQuestions(0);
-                          }}
-                        >
-                          目標
-                        </button>
-
-                        <div className="side-slot">
-                          {targetOn && (
-                            <button
-                              className="adjust-button"
-                              onClick={() =>
-                                handleAdjustClick(() =>
-                                  changeTargetQuestions(1)
-                                )
-                              }
-                              onPointerDown={(e) => {
-                                e.preventDefault();
-                                startHoldChange(() =>
-                                  changeTargetQuestions(10)
-                                );
-                              }}
-                              onPointerUp={stopHoldChange}
-                              onPointerLeave={stopHoldChange}
-                              onPointerCancel={stopHoldChange}
-                            >
-                              ＋
-                            </button>
-                          )}
-                        </div>
-                      </div>
+                     
                     </div>
 
                     <div className="preset-list">
