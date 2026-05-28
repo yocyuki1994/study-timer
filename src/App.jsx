@@ -72,16 +72,36 @@ function App() {
   }
 };
 
-  const startSound = () => {
-    if (!soundOnRef.current) return;
+ const playInstantTone = (frequency, duration, volume = 0.3) => {
+  const audioContext = new AudioContext();
+  const oscillator = audioContext.createOscillator();
+  const gainNode = audioContext.createGain();
 
-    const audio =
-      soundThemeRef.current === "tension"
-        ? tensionStartRef.current
-        : calmStartRef.current;
+  gainNode.gain.value = volume;
+  oscillator.connect(gainNode);
+  gainNode.connect(audioContext.destination);
 
-    playPreparedAudio(audio, 0.9);
-  };
+  oscillator.frequency.value = frequency;
+  oscillator.type = "sine";
+  oscillator.start();
+
+  gainNode.gain.exponentialRampToValueAtTime(
+    0.0001,
+    audioContext.currentTime + duration
+  );
+
+  oscillator.stop(audioContext.currentTime + duration);
+};
+
+const startSound = () => {
+  if (!soundOnRef.current) return;
+
+  if (soundThemeRef.current === "tension") {
+    playInstantTone(1200, 0.12, 0.35);
+  } else {
+    playInstantTone(700, 0.15, 0.3);
+  }
+};
 
   const beep = () => {
     if (!soundOnRef.current) return;
