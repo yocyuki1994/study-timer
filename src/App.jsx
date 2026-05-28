@@ -105,19 +105,9 @@ function App() {
   audios.forEach((audio) => {
     if (!audio) return;
 
-    audio.volume = 0;
+    audio.pause();
     audio.currentTime = 0;
-
-    audio
-      .play()
-      .then(() => {
-        audio.pause();
-        audio.currentTime = 0;
-        audio.volume = 1;
-      })
-      .catch(() => {
-        audio.volume = 1;
-      });
+    audio.load();
   });
 };
 
