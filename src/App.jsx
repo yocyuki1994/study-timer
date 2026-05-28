@@ -59,13 +59,18 @@ function App() {
   const showSettings = !running && !isPaused && !isCooldown;
 
   const playPreparedAudio = (audio, volume = 1) => {
-    if (!audio) return;
+  if (!audio) return;
 
-    audio.pause();
-    audio.currentTime = 0;
-    audio.volume = volume;
-    audio.play().catch(() => {});
-  };
+  audio.pause();
+  audio.currentTime = 0;
+  audio.volume = volume;
+
+  const playPromise = audio.play();
+
+  if (playPromise) {
+    playPromise.catch(() => {});
+  }
+};
 
   const startSound = () => {
     if (!soundOnRef.current) return;
@@ -90,19 +95,31 @@ function App() {
   };
 
   const unlockAudio = () => {
-    const audios = [
-      calmBeepRef.current,
-      calmStartRef.current,
-      tensionBeepRef.current,
-      tensionStartRef.current,
-    ];
+  const audios = [
+    calmBeepRef.current,
+    calmStartRef.current,
+    tensionBeepRef.current,
+    tensionStartRef.current,
+  ];
 
-    audios.forEach((audio) => {
-      if (!audio) return;
+  audios.forEach((audio) => {
+    if (!audio) return;
 
-      audio.load();
-    });
-  };
+    audio.volume = 0;
+    audio.currentTime = 0;
+
+    audio
+      .play()
+      .then(() => {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.volume = 1;
+      })
+      .catch(() => {
+        audio.volume = 1;
+      });
+  });
+};
 
   const triggerFinishGlow = () => {
     setFinishFlash(true);
