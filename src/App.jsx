@@ -9,6 +9,7 @@ const defaultPresets = [
 function App() {
   const [startTime, setStartTime] = useState(30);
   const [cooldownTime, setCooldownTime] = useState(5);
+  const [cooldownOn, setCooldownOn] = useState(false);
 
   const [time, setTime] = useState(30);
   const [progress, setProgress] = useState(100);
@@ -43,6 +44,8 @@ function App() {
   const wakeLockRef = useRef(null);
   const holdTimerRef = useRef(null);
   const longPressTriggeredRef = useRef(false);
+  const holdChangeTimeoutRef = useRef(null);
+  const holdChangeIntervalRef = useRef(null);
 
   const audioContextRef = useRef(null);
   const calmBeepRef = useRef(null);
@@ -173,8 +176,32 @@ function App() {
   };
 
   const changeCooldownTime = (delta) => {
-    const next = Math.max(0, cooldownTime + delta);
+    const next = Math.max(1, cooldownTime + delta);
     setCooldownTime(next);
+  };
+
+  const startHoldChange = (callback) => {
+    stopHoldChange();
+
+    holdChangeTimeoutRef.current = setTimeout(() => {
+      callback();
+
+      holdChangeIntervalRef.current = setInterval(() => {
+        callback();
+      }, 160);
+    }, 450);
+  };
+
+  const stopHoldChange = () => {
+    if (holdChangeTimeoutRef.current) {
+      clearTimeout(holdChangeTimeoutRef.current);
+      holdChangeTimeoutRef.current = null;
+    }
+
+    if (holdChangeIntervalRef.current) {
+      clearInterval(holdChangeIntervalRef.current);
+      holdChangeIntervalRef.current = null;
+    }
   };
 
   const addPreset = () => {
@@ -270,6 +297,7 @@ function App() {
   useEffect(() => {
     return () => {
       releaseWakeLock();
+      stopHoldChange();
     };
   }, []);
 
@@ -310,7 +338,7 @@ function App() {
       if (remaining <= 0) {
         triggerFinishGlow();
 
-        if (!isCooldown && cooldownTime > 0) {
+        if (!isCooldown && cooldownOn && cooldownTime > 0) {
           startSound();
 
           setIsCooldown(true);
@@ -344,6 +372,7 @@ function App() {
     running,
     startTime,
     cooldownTime,
+    cooldownOn,
     remainingOnPause,
     isCooldown,
     hasValidStartTime,
@@ -543,7 +572,7 @@ function App() {
             flex-direction: column;
             gap: 10px;
             margin-bottom: 16px;
-            width: 300px;
+            width: 260px;
             max-width: 92vw;
           }
 
@@ -551,37 +580,46 @@ function App() {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            gap: 10px;
           }
 
-          .adjust-label {
-            width: 44px;
-            text-align: right;
+          .adjust-label-button {
+            min-width: 64px;
+            height: 34px;
+            border: none;
+            border-radius: 999px;
+            color: white;
             font-size: 13px;
-            color: #aaa;
+            font-weight: bold;
+            cursor: pointer;
+          }
+
+          .adjust-label-button.off {
+            background-color: #555;
+            opacity: 0.75;
+          }
+
+          .adjust-label-button.on {
+            background-color: #22c55e;
           }
 
           .adjust-time {
-            width: 72px;
+            width: 76px;
             text-align: center;
             font-size: 18px;
             font-weight: bold;
           }
 
           .adjust-button {
-            min-width: 38px;
+            min-width: 42px;
             height: 34px;
             border: none;
             border-radius: 999px;
             background-color: #333;
             color: white;
-            font-size: 15px;
+            font-size: 18px;
             font-weight: bold;
             cursor: pointer;
-          }
-
-          .adjust-button.big {
-            background-color: #444;
           }
 
           .preset-list {
@@ -714,19 +752,25 @@ function App() {
             }
 
             .adjust-panel {
-              width: 280px;
+              width: 250px;
               margin-bottom: 10px;
               gap: 7px;
             }
 
             .adjust-button {
-              min-width: 34px;
+              min-width: 36px;
               height: 30px;
-              font-size: 13px;
+              font-size: 16px;
+            }
+
+            .adjust-label-button {
+              min-width: 58px;
+              height: 30px;
+              font-size: 12px;
             }
 
             .adjust-time {
-              width: 68px;
+              width: 70px;
               font-size: 16px;
             }
 
@@ -856,18 +900,21 @@ function App() {
               <>
                 <div className="adjust-panel">
                   <div className="adjust-row">
-                    <div className="adjust-label">時間</div>
-
-                    <button
-                      className="adjust-button big"
-                      onClick={() => changeMainTime(-10)}
-                    >
-                      －－
-                    </button>
+                    <button className="adjust-label-button on">時間</button>
 
                     <button
                       className="adjust-button"
                       onClick={() => changeMainTime(-1)}
+                      onMouseDown={() =>
+                        startHoldChange(() => changeMainTime(-10))
+                      }
+                      onMouseUp={stopHoldChange}
+                      onMouseLeave={stopHoldChange}
+                      onTouchStart={() =>
+                        startHoldChange(() => changeMainTime(-10))
+                      }
+                      onTouchEnd={stopHoldChange}
+                      onTouchCancel={stopHoldChange}
                     >
                       －
                     </button>
@@ -877,52 +924,74 @@ function App() {
                     <button
                       className="adjust-button"
                       onClick={() => changeMainTime(1)}
+                      onMouseDown={() =>
+                        startHoldChange(() => changeMainTime(10))
+                      }
+                      onMouseUp={stopHoldChange}
+                      onMouseLeave={stopHoldChange}
+                      onTouchStart={() =>
+                        startHoldChange(() => changeMainTime(10))
+                      }
+                      onTouchEnd={stopHoldChange}
+                      onTouchCancel={stopHoldChange}
                     >
                       ＋
-                    </button>
-
-                    <button
-                      className="adjust-button big"
-                      onClick={() => changeMainTime(10)}
-                    >
-                      ＋＋
                     </button>
                   </div>
 
                   <div className="adjust-row">
-                    <div className="adjust-label">休憩</div>
-
                     <button
-                      className="adjust-button big"
-                      onClick={() => changeCooldownTime(-10)}
+                      className={`adjust-label-button ${
+                        cooldownOn ? "on" : "off"
+                      }`}
+                      onClick={() => {
+                        setCooldownOn((v) => !v);
+                      }}
                     >
-                      －－
+                      休憩
                     </button>
 
-                    <button
-                      className="adjust-button"
-                      onClick={() => changeCooldownTime(-1)}
-                    >
-                      －
-                    </button>
+                    {cooldownOn && (
+                      <>
+                        <button
+                          className="adjust-button"
+                          onClick={() => changeCooldownTime(-1)}
+                          onMouseDown={() =>
+                            startHoldChange(() => changeCooldownTime(-10))
+                          }
+                          onMouseUp={stopHoldChange}
+                          onMouseLeave={stopHoldChange}
+                          onTouchStart={() =>
+                            startHoldChange(() => changeCooldownTime(-10))
+                          }
+                          onTouchEnd={stopHoldChange}
+                          onTouchCancel={stopHoldChange}
+                        >
+                          －
+                        </button>
 
-                    <div className="adjust-time">
-                      {formatTime(cooldownTime)}
-                    </div>
+                        <div className="adjust-time">
+                          {formatTime(cooldownTime)}
+                        </div>
 
-                    <button
-                      className="adjust-button"
-                      onClick={() => changeCooldownTime(1)}
-                    >
-                      ＋
-                    </button>
-
-                    <button
-                      className="adjust-button big"
-                      onClick={() => changeCooldownTime(10)}
-                    >
-                      ＋＋
-                    </button>
+                        <button
+                          className="adjust-button"
+                          onClick={() => changeCooldownTime(1)}
+                          onMouseDown={() =>
+                            startHoldChange(() => changeCooldownTime(10))
+                          }
+                          onMouseUp={stopHoldChange}
+                          onMouseLeave={stopHoldChange}
+                          onTouchStart={() =>
+                            startHoldChange(() => changeCooldownTime(10))
+                          }
+                          onTouchEnd={stopHoldChange}
+                          onTouchCancel={stopHoldChange}
+                        >
+                          ＋
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
 
