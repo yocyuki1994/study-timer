@@ -1104,6 +1104,7 @@ function App() {
                 {soundOn ? "🔊 ON" : "🔇 OFF"}
               </button>
 
+                {soundOn && (
               <button
                 className="sound-button"
                 disabled={!soundOn}
@@ -1125,7 +1126,7 @@ function App() {
                 }}
               >
                 {soundTheme === "calm" ? "🌙 Calm" : "⚡ Tension"}
-              </button>
+              </button>)}
             </div>
 
             {!isPaused && (
