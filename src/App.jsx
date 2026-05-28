@@ -14,6 +14,7 @@ function App() {
   const [targetOn, setTargetOn] = useState(false);
   const [targetQuestions, setTargetQuestions] = useState(10);
   const [completed, setCompleted] = useState(false);
+  const [completedQuestions, setCompletedQuestions] = useState(0);
 
   const [time, setTime] = useState(30);
   const [progress, setProgress] = useState(100);
@@ -67,7 +68,7 @@ function App() {
     time !== startTime &&
     !completed;
 
-  const showSettings = !running && !isPaused && !isCooldown;
+  const showSettings = !running && !isPaused && !isCooldown && !completed;
 
   const prepareAudioContext = async () => {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -175,6 +176,7 @@ function App() {
 
     setStartTime(safeTime);
     setCompleted(false);
+    setCompletedQuestions(0);
     setIsCooldown(false);
     setTime(safeTime);
     setProgress(100);
@@ -187,6 +189,7 @@ function App() {
       const next = Math.max(1, prev + delta);
 
       setCompleted(false);
+      setCompletedQuestions(0);
       setIsCooldown(false);
       setTime(next);
       setProgress(100);
@@ -204,6 +207,7 @@ function App() {
   const changeTargetQuestions = (delta) => {
     setTargetQuestions((prev) => Math.max(1, prev + delta));
     setCompleted(false);
+    setCompletedQuestions(0);
   };
 
   const startHoldChange = (callback) => {
@@ -377,6 +381,18 @@ function App() {
       if (remaining <= 0) {
         triggerFinishGlow();
 
+        if (!isCooldown && targetOn && question >= targetQuestions) {
+          startSound();
+
+          setRunning(false);
+          setCompleted(true);
+          setCompletedQuestions(question);
+          setIsCooldown(false);
+          setProgress(100);
+          releaseWakeLock();
+          return;
+        }
+
         if (!isCooldown && cooldownOn && cooldownTime > 0) {
           startSound();
 
@@ -389,25 +405,7 @@ function App() {
         } else {
           startSound();
 
-          let shouldComplete = false;
-
-          setQuestion((q) => {
-            if (targetOn && q >= targetQuestions) {
-              shouldComplete = true;
-              return q;
-            }
-
-            return q + 1;
-          });
-
-          if (shouldComplete) {
-            setRunning(false);
-            setCompleted(true);
-            setIsCooldown(false);
-            releaseWakeLock();
-            return;
-          }
-
+          setQuestion((q) => q + 1);
           setIsCooldown(false);
           setRemainingOnPause(startTime);
           setRemainingPrecise(startTime);
@@ -432,6 +430,7 @@ function App() {
     cooldownOn,
     targetOn,
     targetQuestions,
+    question,
     remainingOnPause,
     isCooldown,
     hasValidStartTime,
@@ -454,6 +453,7 @@ function App() {
   const resetTimer = () => {
     setRunning(false);
     setCompleted(false);
+    setCompletedQuestions(0);
     setIsCooldown(false);
     setTime(startTime);
     setProgress(100);
@@ -578,6 +578,47 @@ function App() {
             background-color: #660000;
           }
 
+          .complete-screen {
+            min-height: 100vh;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: black;
+            color: white;
+            gap: 28px;
+          }
+
+          .complete-title {
+            font-size: 58px;
+            font-weight: bold;
+            color: #22c55e;
+            text-shadow: 0 0 24px rgba(34,197,94,0.9);
+            letter-spacing: 2px;
+          }
+
+          .complete-result {
+            text-align: center;
+            line-height: 1.8;
+            color: #aaa;
+            font-size: 20px;
+          }
+
+          .reset-button {
+            font-size: 22px;
+            padding: 12px 30px;
+            background-color: #666;
+            color: white;
+            border: none;
+            border-radius: 999px;
+            cursor: pointer;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            touch-action: manipulation;
+          }
+
           .main-layout {
             display: flex;
             flex-direction: column;
@@ -664,6 +705,39 @@ function App() {
             gap: 10px;
           }
 
+          .fixed-control-row {
+            display: grid;
+            grid-template-columns: 42px 64px 42px;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+          }
+
+          .sound-control-row {
+            display: grid;
+            grid-template-columns: 74px 64px 74px;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+          }
+
+          .side-slot {
+            width: 42px;
+            height: 34px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+          }
+
+          .sound-side-slot {
+            width: 74px;
+            height: 34px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+          }
+
           .adjust-label-button {
             min-width: 64px;
             height: 34px;
@@ -704,11 +778,31 @@ function App() {
             touch-action: manipulation;
           }
 
-          .target-count {
-            width: 34px;
-            text-align: center;
-            font-size: 17px;
+          .sound-option-button {
+            min-width: 74px;
+            height: 34px;
+            border: none;
+            border-radius: 999px;
+            color: white;
+            font-size: 13px;
             font-weight: bold;
+            cursor: pointer;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            touch-action: manipulation;
+          }
+
+          .sound-option-button.calm {
+            background-color: #3b82f6;
+          }
+
+          .sound-option-button.tension {
+            background-color: #ef4444;
+          }
+
+          .sound-option-button.inactive {
+            opacity: 0.45;
           }
 
           .preset-list {
@@ -785,27 +879,6 @@ function App() {
             cursor: not-allowed;
           }
 
-          .toggle-row {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-            justify-content: center;
-          }
-
-          .sound-button {
-            font-size: 16px;
-            padding: 8px 14px;
-            border: none;
-            border-radius: 999px;
-            color: white;
-            cursor: pointer;
-            -webkit-user-select: none;
-            user-select: none;
-            -webkit-touch-callout: none;
-            touch-action: manipulation;
-          }
-
           .main-buttons {
             display: flex;
             gap: 15px;
@@ -826,6 +899,14 @@ function App() {
               opacity: 0.7;
               letter-spacing: 2px;
               margin: 0;
+            }
+
+            .complete-title {
+              font-size: 48px;
+            }
+
+            .complete-result {
+              font-size: 17px;
             }
 
             .main-layout {
@@ -877,6 +958,33 @@ function App() {
               font-size: 12px;
             }
 
+            .fixed-control-row {
+              grid-template-columns: 36px 58px 36px;
+              gap: 8px;
+            }
+
+            .sound-control-row {
+              grid-template-columns: 66px 58px 66px;
+              gap: 8px;
+              margin-bottom: 12px;
+            }
+
+            .side-slot {
+              width: 36px;
+              height: 30px;
+            }
+
+            .sound-side-slot {
+              width: 66px;
+              height: 30px;
+            }
+
+            .sound-option-button {
+              min-width: 66px;
+              height: 30px;
+              font-size: 12px;
+            }
+
             .preset-list {
               margin-bottom: 10px !important;
               max-width: 280px;
@@ -902,15 +1010,6 @@ function App() {
               min-width: 48px;
               min-height: 42px;
               font-size: 24px;
-            }
-
-            .toggle-row {
-              margin-bottom: 12px !important;
-            }
-
-            .sound-button {
-              font-size: 16px !important;
-              padding: 7px 14px !important;
             }
 
             .main-buttons {
@@ -942,123 +1041,95 @@ function App() {
       </style>
 
       <div className={`app-root ${flash ? "flash" : ""}`}>
-        <h1
-          key={completed ? "complete" : isCooldown ? "cooldown" : question}
-          className="question-title"
-          style={{
-            fontSize: "40px",
-            animation: "pop 0.4s ease",
-            color: completed ? "#22c55e" : isCooldown ? "#3b82f6" : "white",
-            textShadow: completed
-              ? "0 0 18px rgba(34,197,94,0.9)"
-              : isCooldown
-              ? "0 0 18px rgba(59,130,246,0.9)"
-              : "none",
-          }}
-        >
-          {completed ? "COMPLETE" : isCooldown ? "休憩" : `Q ${question}`}
-        </h1>
+        {completed ? (
+          <div className="complete-screen">
+            <div className="complete-title">COMPLETE</div>
 
-        <div className="main-layout">
-          <div
-            className={`timer-circle
-              ${finishFlash ? "finish-glow" : ""}
-              ${isCooldown ? "cooldown-glow" : ""}
-            `}
-            style={{
-              background: `conic-gradient(
-                from 0deg,
-                #333 0% ${100 - progress}%,
-                ${
-                  isCooldown
-                    ? "#3b82f6"
-                    : hasValidStartTime && time <= 5
-                    ? "red"
-                    : "lime"
-                } ${100 - progress}% 100%
-              )`,
-            }}
-          >
-            <div className="timer-inner">
-              {showSettings && targetOn && (
-                <div className="target-preview">目標 {targetQuestions}</div>
-              )}
+            <div className="complete-result">
+              <div>問題数　{completedQuestions}</div>
+              <div>合計　{formatTime(completedQuestions * startTime)}</div>
+            </div>
 
+            <button className="reset-button" onClick={resetTimer}>
+              RESET
+            </button>
+          </div>
+        ) : (
+          <>
+            <h1
+              key={isCooldown ? "cooldown" : question}
+              className="question-title"
+              style={{
+                fontSize: "40px",
+                animation: "pop 0.4s ease",
+                color: isCooldown ? "#3b82f6" : "white",
+                textShadow: isCooldown
+                  ? "0 0 18px rgba(59,130,246,0.9)"
+                  : "none",
+              }}
+            >
+              {isCooldown ? "休憩" : `Q ${question}`}
+            </h1>
+
+            <div className="main-layout">
               <div
-                className="timer-text main-time-center"
+                className={`timer-circle
+                  ${finishFlash ? "finish-glow" : ""}
+                  ${isCooldown ? "cooldown-glow" : ""}
+                `}
                 style={{
-                  color: isCooldown
-                    ? "#3b82f6"
-                    : hasValidStartTime && time <= 5
-                    ? "red"
-                    : "white",
+                  background: `conic-gradient(
+                    from 0deg,
+                    #333 0% ${100 - progress}%,
+                    ${
+                      isCooldown
+                        ? "#3b82f6"
+                        : hasValidStartTime && time <= 5
+                        ? "red"
+                        : "lime"
+                    } ${100 - progress}% 100%
+                  )`,
                 }}
               >
-                {formatTime(showSettings ? startTime : time)}
+                <div className="timer-inner">
+                  {showSettings && targetOn && (
+                    <div className="target-preview">目標 {targetQuestions}</div>
+                  )}
+
+                  <div
+                    className="timer-text main-time-center"
+                    style={{
+                      color: isCooldown
+                        ? "#3b82f6"
+                        : hasValidStartTime && time <= 5
+                        ? "red"
+                        : "white",
+                    }}
+                  >
+                    {formatTime(showSettings ? startTime : time)}
+                  </div>
+
+                  {showSettings && cooldownOn && (
+                    <div className="cooldown-preview">
+                      {formatTime(cooldownTime)}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {showSettings && cooldownOn && (
-                <div className="cooldown-preview">{formatTime(cooldownTime)}</div>
-              )}
-            </div>
-          </div>
-
-          <div className="controls-panel">
-            {showSettings && (
-              <>
-                <div className="adjust-panel">
-                  <div className="adjust-row">
-                    <button
-                      className="adjust-button"
-                      onClick={() => handleAdjustClick(() => changeMainTime(-1))}
-                      onPointerDown={(e) => {
-                        e.preventDefault();
-                        startHoldChange(() => changeMainTime(-10));
-                      }}
-                      onPointerUp={stopHoldChange}
-                      onPointerLeave={stopHoldChange}
-                      onPointerCancel={stopHoldChange}
-                    >
-                      －
-                    </button>
-
-                    <button
-                      className="adjust-button"
-                      onClick={() => handleAdjustClick(() => changeMainTime(1))}
-                      onPointerDown={(e) => {
-                        e.preventDefault();
-                        startHoldChange(() => changeMainTime(10));
-                      }}
-                      onPointerUp={stopHoldChange}
-                      onPointerLeave={stopHoldChange}
-                      onPointerCancel={stopHoldChange}
-                    >
-                      ＋
-                    </button>
-                  </div>
-
-                  <div className="adjust-row">
-                    <button
-                      className={`adjust-label-button ${
-                        cooldownOn ? "on" : "off"
-                      }`}
-                      onClick={() => {
-                        setCooldownOn((v) => !v);
-                      }}
-                    >
-                      休憩
-                    </button>
-
-                    {cooldownOn && (
-                      <>
+              <div className="controls-panel">
+                {showSettings && (
+                  <>
+                    <div className="adjust-panel">
+                      <div className="adjust-row">
                         <button
                           className="adjust-button"
                           onClick={() =>
-                            handleAdjustClick(() => changeCooldownTime(-1))
+                            handleAdjustClick(() => changeMainTime(-1))
                           }
                           onPointerDown={(e) => {
                             e.preventDefault();
-                            startHoldChange(() => changeCooldownTime(-10));
+                            startHoldChange(() => changeMainTime(-10));
                           }}
                           onPointerUp={stopHoldChange}
                           onPointerLeave={stopHoldChange}
@@ -1070,11 +1141,11 @@ function App() {
                         <button
                           className="adjust-button"
                           onClick={() =>
-                            handleAdjustClick(() => changeCooldownTime(1))
+                            handleAdjustClick(() => changeMainTime(1))
                           }
                           onPointerDown={(e) => {
                             e.preventDefault();
-                            startHoldChange(() => changeCooldownTime(10));
+                            startHoldChange(() => changeMainTime(10));
                           }}
                           onPointerUp={stopHoldChange}
                           onPointerLeave={stopHoldChange}
@@ -1082,382 +1153,469 @@ function App() {
                         >
                           ＋
                         </button>
-                      </>
-                    )}
-                  </div>
+                      </div>
 
-                  <div className="adjust-row">
-                    <button
-                      className={`adjust-label-button ${
-                        targetOn ? "on" : "off"
-                      }`}
-                      onClick={() => {
-                        setTargetOn((v) => !v);
-                        setCompleted(false);
-                      }}
-                    >
-                      目標
-                    </button>
-
-                    {targetOn && (
-                      <>
-                        <button
-                          className="adjust-button"
-                          onClick={() =>
-                            handleAdjustClick(() => changeTargetQuestions(-1))
-                          }
-                          onPointerDown={(e) => {
-                            e.preventDefault();
-                            startHoldChange(() => changeTargetQuestions(-10));
-                          }}
-                          onPointerUp={stopHoldChange}
-                          onPointerLeave={stopHoldChange}
-                          onPointerCancel={stopHoldChange}
-                        >
-                          －
-                        </button>
-
-                        <div className="target-count">{targetQuestions}</div>
-
-                        <button
-                          className="adjust-button"
-                          onClick={() =>
-                            handleAdjustClick(() => changeTargetQuestions(1))
-                          }
-                          onPointerDown={(e) => {
-                            e.preventDefault();
-                            startHoldChange(() => changeTargetQuestions(10));
-                          }}
-                          onPointerUp={stopHoldChange}
-                          onPointerLeave={stopHoldChange}
-                          onPointerCancel={stopHoldChange}
-                        >
-                          ＋
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div className="preset-list">
-                  {presets.map((preset, index) => {
-                    const selected = startTime === preset.seconds;
-
-                    return (
-                      <button
-                        key={`${preset.name}-${index}`}
-                        className={`preset-card ${
-                          selected ? "selected" : "normal"
-                        }`}
-                        disabled={running}
-                        onClick={() => {
-                          if (presetLongPressTriggeredRef.current) {
-                            presetLongPressTriggeredRef.current = false;
-                            return;
-                          }
-
-                          applyMainTime(preset.seconds);
-                        }}
-                        onPointerDown={() => startPresetLongPress(preset, index)}
-                        onPointerUp={endPresetLongPress}
-                        onPointerLeave={endPresetLongPress}
-                        onPointerCancel={endPresetLongPress}
-                      >
-                        <div className="preset-name">{preset.name}</div>
-                        <div className="preset-seconds">
-                          {preset.seconds}秒
+                      <div className="fixed-control-row">
+                        <div className="side-slot">
+                          {cooldownOn && (
+                            <button
+                              className="adjust-button"
+                              onClick={() =>
+                                handleAdjustClick(() =>
+                                  changeCooldownTime(-1)
+                                )
+                              }
+                              onPointerDown={(e) => {
+                                e.preventDefault();
+                                startHoldChange(() =>
+                                  changeCooldownTime(-10)
+                                );
+                              }}
+                              onPointerUp={stopHoldChange}
+                              onPointerLeave={stopHoldChange}
+                              onPointerCancel={stopHoldChange}
+                            >
+                              －
+                            </button>
+                          )}
                         </div>
+
+                        <button
+                          className={`adjust-label-button ${
+                            cooldownOn ? "on" : "off"
+                          }`}
+                          onClick={() => {
+                            setCooldownOn((v) => !v);
+                          }}
+                        >
+                          休憩
+                        </button>
+
+                        <div className="side-slot">
+                          {cooldownOn && (
+                            <button
+                              className="adjust-button"
+                              onClick={() =>
+                                handleAdjustClick(() =>
+                                  changeCooldownTime(1)
+                                )
+                              }
+                              onPointerDown={(e) => {
+                                e.preventDefault();
+                                startHoldChange(() =>
+                                  changeCooldownTime(10)
+                                );
+                              }}
+                              onPointerUp={stopHoldChange}
+                              onPointerLeave={stopHoldChange}
+                              onPointerCancel={stopHoldChange}
+                            >
+                              ＋
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="fixed-control-row">
+                        <div className="side-slot">
+                          {targetOn && (
+                            <button
+                              className="adjust-button"
+                              onClick={() =>
+                                handleAdjustClick(() =>
+                                  changeTargetQuestions(-1)
+                                )
+                              }
+                              onPointerDown={(e) => {
+                                e.preventDefault();
+                                startHoldChange(() =>
+                                  changeTargetQuestions(-10)
+                                );
+                              }}
+                              onPointerUp={stopHoldChange}
+                              onPointerLeave={stopHoldChange}
+                              onPointerCancel={stopHoldChange}
+                            >
+                              －
+                            </button>
+                          )}
+                        </div>
+
+                        <button
+                          className={`adjust-label-button ${
+                            targetOn ? "on" : "off"
+                          }`}
+                          onClick={() => {
+                            setTargetOn((v) => !v);
+                            setCompleted(false);
+                            setCompletedQuestions(0);
+                          }}
+                        >
+                          目標
+                        </button>
+
+                        <div className="side-slot">
+                          {targetOn && (
+                            <button
+                              className="adjust-button"
+                              onClick={() =>
+                                handleAdjustClick(() =>
+                                  changeTargetQuestions(1)
+                                )
+                              }
+                              onPointerDown={(e) => {
+                                e.preventDefault();
+                                startHoldChange(() =>
+                                  changeTargetQuestions(10)
+                                );
+                              }}
+                              onPointerUp={stopHoldChange}
+                              onPointerLeave={stopHoldChange}
+                              onPointerCancel={stopHoldChange}
+                            >
+                              ＋
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="preset-list">
+                      {presets.map((preset, index) => {
+                        const selected = startTime === preset.seconds;
+
+                        return (
+                          <button
+                            key={`${preset.name}-${index}`}
+                            className={`preset-card ${
+                              selected ? "selected" : "normal"
+                            }`}
+                            disabled={running}
+                            onClick={() => {
+                              if (presetLongPressTriggeredRef.current) {
+                                presetLongPressTriggeredRef.current = false;
+                                return;
+                              }
+
+                              applyMainTime(preset.seconds);
+                            }}
+                            onPointerDown={() =>
+                              startPresetLongPress(preset, index)
+                            }
+                            onPointerUp={endPresetLongPress}
+                            onPointerLeave={endPresetLongPress}
+                            onPointerCancel={endPresetLongPress}
+                          >
+                            <div className="preset-name">{preset.name}</div>
+                            <div className="preset-seconds">
+                              {preset.seconds}秒
+                            </div>
+                          </button>
+                        );
+                      })}
+
+                      <button
+                        className="preset-add"
+                        disabled={running || !hasValidStartTime}
+                        onClick={addPreset}
+                      >
+                        ＋
                       </button>
-                    );
-                  })}
+                    </div>
+                  </>
+                )}
+
+                <div className="sound-control-row">
+                  <div className="sound-side-slot">
+                    {soundOn && (
+                      <button
+                        className={`sound-option-button calm ${
+                          soundTheme === "calm" ? "" : "inactive"
+                        }`}
+                        onClick={() => setSoundTheme("calm")}
+                      >
+                        Calm
+                      </button>
+                    )}
+                  </div>
 
                   <button
-                    className="preset-add"
-                    disabled={running || !hasValidStartTime}
-                    onClick={addPreset}
+                    className={`adjust-label-button ${
+                      soundOn ? "on" : "off"
+                    }`}
+                    onClick={() => {
+                      setSoundOn((v) => !v);
+                    }}
                   >
-                    ＋
+                    SOUND
                   </button>
-                </div>
-              </>
-            )}
 
-            <div className="toggle-row">
-              <button
-                className="sound-button"
-                onClick={() => {
-                  setSoundOn((v) => !v);
-                }}
+                  <div className="sound-side-slot">
+                    {soundOn && (
+                      <button
+                        className={`sound-option-button tension ${
+                          soundTheme === "tension" ? "" : "inactive"
+                        }`}
+                        onClick={() => setSoundTheme("tension")}
+                      >
+                        Tension
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {!isPaused && (
+                  <div className="main-buttons">
+                    {running ? (
+                      <button
+                        onMouseDown={() => setPressedButton("stop")}
+                        onMouseUp={() => setPressedButton("")}
+                        onMouseLeave={() => setPressedButton("")}
+                        onTouchStart={() => setPressedButton("stop")}
+                        onTouchEnd={() => setPressedButton("")}
+                        onClick={() => {
+                          setRunning(false);
+                          setRemainingOnPause(remainingPrecise);
+                          releaseWakeLock();
+                        }}
+                        style={{
+                          fontSize: "20px",
+                          padding: "10px 22px",
+                          backgroundColor: "#ef4444",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "12px",
+                          cursor: "pointer",
+                          transition: "0.1s",
+                          filter:
+                            pressedButton === "stop"
+                              ? "brightness(0.8)"
+                              : "brightness(1)",
+                          transform:
+                            pressedButton === "stop"
+                              ? "scale(0.95)"
+                              : "scale(1)",
+                        }}
+                      >
+                        STOP
+                      </button>
+                    ) : (
+                      <button
+                        disabled={!hasValidStartTime}
+                        onClick={async () => {
+                          if (!hasValidStartTime) return;
+
+                          setCompleted(false);
+                          setCompletedQuestions(0);
+                          await prepareAudioContext();
+                          preloadBeepAudio();
+
+                          const currentDuration = isCooldown
+                            ? cooldownTime
+                            : startTime;
+
+                          const isFreshStart =
+                            remainingPrecise <= 0 ||
+                            remainingPrecise >= currentDuration ||
+                            completed;
+
+                          if (isFreshStart) {
+                            setRemainingOnPause(currentDuration);
+                            setTime(currentDuration);
+                          } else {
+                            setRemainingOnPause(remainingPrecise);
+                          }
+
+                          await startSound();
+                          setRunning(true);
+                          requestWakeLock();
+                        }}
+                        style={{
+                          fontSize: "20px",
+                          padding: "10px 22px",
+                          backgroundColor: "#22c55e",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "12px",
+                          cursor: !hasValidStartTime
+                            ? "not-allowed"
+                            : "pointer",
+                          opacity: !hasValidStartTime ? 0.5 : 1,
+                        }}
+                      >
+                        ▶ START
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {isPaused && (
+              <div
                 style={{
-                  backgroundColor: soundOn ? "#22c55e" : "#555",
+                  position: "fixed",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: "100%",
+                  backgroundColor: "rgba(0,0,0,0.35)",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  zIndex: 999,
                 }}
               >
-                {soundOn ? "🔊 ON" : "🔇 OFF"}
-              </button>
-
-              {soundOn && (
-                <button
-                  className="sound-button"
-                  onClick={() => {
-                    setSoundTheme((prev) =>
-                      prev === "calm" ? "tension" : "calm"
-                    );
-                  }}
+                <div
+                  className="paused-panel"
                   style={{
-                    backgroundColor:
-                      soundTheme === "calm" ? "#3b82f6" : "#ef4444",
+                    display: "flex",
+                    gap: "20px",
+                    backgroundColor: "rgba(30,30,30,0.95)",
+                    padding: "24px 28px",
+                    borderRadius: "24px",
+                    boxShadow: "0 10px 40px rgba(0,0,0,0.5)",
+                    animation: "modalPop 0.18s ease",
                   }}
                 >
-                  {soundTheme === "calm" ? "🌙 Calm" : "⚡ Tension"}
-                </button>
-              )}
-            </div>
-
-            {!isPaused && (
-              <div className="main-buttons">
-                {running ? (
                   <button
-                    onMouseDown={() => setPressedButton("stop")}
-                    onMouseUp={() => setPressedButton("")}
-                    onMouseLeave={() => setPressedButton("")}
-                    onTouchStart={() => setPressedButton("stop")}
-                    onTouchEnd={() => setPressedButton("")}
                     onClick={() => {
-                      setRunning(false);
-                      setRemainingOnPause(remainingPrecise);
-                      releaseWakeLock();
-                    }}
-                    style={{
-                      fontSize: "20px",
-                      padding: "10px 22px",
-                      backgroundColor: "#ef4444",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "12px",
-                      cursor: "pointer",
-                      transition: "0.1s",
-                      filter:
-                        pressedButton === "stop"
-                          ? "brightness(0.8)"
-                          : "brightness(1)",
-                      transform:
-                        pressedButton === "stop" ? "scale(0.95)" : "scale(1)",
-                    }}
-                  >
-                    STOP
-                  </button>
-                ) : (
-                  <button
-                    disabled={!hasValidStartTime}
-                    onClick={async () => {
-                      if (!hasValidStartTime) return;
-
-                      setCompleted(false);
-                      await prepareAudioContext();
-                      preloadBeepAudio();
-
-                      const currentDuration = isCooldown
-                        ? cooldownTime
-                        : startTime;
-
-                      const isFreshStart =
-                        remainingPrecise <= 0 ||
-                        remainingPrecise >= currentDuration ||
-                        completed;
-
-                      if (isFreshStart) {
-                        setRemainingOnPause(currentDuration);
-                        setTime(currentDuration);
-                      } else {
-                        setRemainingOnPause(remainingPrecise);
-                      }
-
-                      await startSound();
                       setRunning(true);
                       requestWakeLock();
                     }}
                     style={{
-                      fontSize: "20px",
-                      padding: "10px 22px",
+                      fontSize: "24px",
+                      padding: "14px 32px",
                       backgroundColor: "#22c55e",
                       color: "white",
                       border: "none",
-                      borderRadius: "12px",
-                      cursor: !hasValidStartTime ? "not-allowed" : "pointer",
-                      opacity: !hasValidStartTime ? 0.5 : 1,
+                      borderRadius: "999px",
+                      cursor: "pointer",
                     }}
                   >
-                    ▶ START
+                    ▶ 再開
                   </button>
-                )}
+
+                  <button
+                    onClick={resetTimer}
+                    style={{
+                      fontSize: "24px",
+                      padding: "14px 32px",
+                      backgroundColor: "#666",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "999px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    ↺ リセット
+                  </button>
+                </div>
               </div>
             )}
-          </div>
-        </div>
 
-        {isPaused && (
-          <div
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              backgroundColor: "rgba(0,0,0,0.35)",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              zIndex: 999,
-            }}
-          >
-            <div
-              className="paused-panel"
-              style={{
-                display: "flex",
-                gap: "20px",
-                backgroundColor: "rgba(30,30,30,0.95)",
-                padding: "24px 28px",
-                borderRadius: "24px",
-                boxShadow: "0 10px 40px rgba(0,0,0,0.5)",
-                animation: "modalPop 0.18s ease",
-              }}
-            >
-              <button
-                onClick={() => {
-                  setRunning(true);
-                  requestWakeLock();
-                }}
-                style={{
-                  fontSize: "24px",
-                  padding: "14px 32px",
-                  backgroundColor: "#22c55e",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "999px",
-                  cursor: "pointer",
-                }}
-              >
-                ▶ 再開
-              </button>
-
-              <button
-                onClick={resetTimer}
-                style={{
-                  fontSize: "24px",
-                  padding: "14px 32px",
-                  backgroundColor: "#666",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "999px",
-                  cursor: "pointer",
-                }}
-              >
-                ↺ リセット
-              </button>
-            </div>
-          </div>
-        )}
-
-        {showPresetModal && (
-          <div
-            onClick={() => setShowPresetModal(false)}
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              backgroundColor: "rgba(0,0,0,0.55)",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              zIndex: 1000,
-            }}
-          >
-            <div
-              className="preset-modal"
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                backgroundColor: "#1f1f1f",
-                padding: "24px",
-                borderRadius: "24px",
-                width: "280px",
-                textAlign: "center",
-                boxShadow: "0 10px 40px rgba(0,0,0,0.6)",
-                animation: "modalPop 0.18s ease",
-              }}
-            >
+            {showPresetModal && (
               <div
+                onClick={() => setShowPresetModal(false)}
                 style={{
-                  fontSize: "22px",
-                  fontWeight: "bold",
-                  marginBottom: "16px",
-                }}
-              >
-                プリセット追加
-              </div>
-
-              <input
-                autoFocus
-                value={newPresetName}
-                onChange={(e) => setNewPresetName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    savePreset();
-                  }
-                }}
-                placeholder="セット名"
-                style={{
+                  position: "fixed",
+                  top: 0,
+                  left: 0,
                   width: "100%",
-                  boxSizing: "border-box",
-                  fontSize: "18px",
-                  padding: "12px",
-                  borderRadius: "12px",
-                  border: "none",
-                  marginBottom: "18px",
-                  textAlign: "center",
-                }}
-              />
-
-              <div
-                style={{
+                  height: "100%",
+                  backgroundColor: "rgba(0,0,0,0.55)",
                   display: "flex",
-                  gap: "12px",
                   justifyContent: "center",
+                  alignItems: "center",
+                  zIndex: 1000,
                 }}
               >
-                <button
-                  onClick={savePreset}
+                <div
+                  className="preset-modal"
+                  onClick={(e) => e.stopPropagation()}
                   style={{
-                    fontSize: "17px",
-                    padding: "10px 18px",
-                    backgroundColor: "#22c55e",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "999px",
-                    cursor: "pointer",
+                    backgroundColor: "#1f1f1f",
+                    padding: "24px",
+                    borderRadius: "24px",
+                    width: "280px",
+                    textAlign: "center",
+                    boxShadow: "0 10px 40px rgba(0,0,0,0.6)",
+                    animation: "modalPop 0.18s ease",
                   }}
                 >
-                  保存
-                </button>
+                  <div
+                    style={{
+                      fontSize: "22px",
+                      fontWeight: "bold",
+                      marginBottom: "16px",
+                    }}
+                  >
+                    プリセット追加
+                  </div>
 
-                <button
-                  onClick={() => setShowPresetModal(false)}
-                  style={{
-                    fontSize: "17px",
-                    padding: "10px 18px",
-                    backgroundColor: "#555",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "999px",
-                    cursor: "pointer",
-                  }}
-                >
-                  キャンセル
-                </button>
+                  <input
+                    autoFocus
+                    value={newPresetName}
+                    onChange={(e) => setNewPresetName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        savePreset();
+                      }
+                    }}
+                    placeholder="セット名"
+                    style={{
+                      width: "100%",
+                      boxSizing: "border-box",
+                      fontSize: "18px",
+                      padding: "12px",
+                      borderRadius: "12px",
+                      border: "none",
+                      marginBottom: "18px",
+                      textAlign: "center",
+                    }}
+                  />
+
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "12px",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <button
+                      onClick={savePreset}
+                      style={{
+                        fontSize: "17px",
+                        padding: "10px 18px",
+                        backgroundColor: "#22c55e",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "999px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      保存
+                    </button>
+
+                    <button
+                      onClick={() => setShowPresetModal(false)}
+                      style={{
+                        fontSize: "17px",
+                        padding: "10px 18px",
+                        backgroundColor: "#555",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "999px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      キャンセル
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            )}
+          </>
         )}
       </div>
     </>
