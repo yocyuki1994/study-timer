@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const defaultPresets = [
   { name: "英単語", seconds: 7 },
@@ -7,13 +7,8 @@ const defaultPresets = [
 ];
 
 function App() {
-  const [mainMinutes, setMainMinutes] = useState(0);
-  const [mainSeconds, setMainSeconds] = useState(30);
-  const [cooldownMinutes, setCooldownMinutes] = useState(0);
-  const [cooldownSeconds, setCooldownSeconds] = useState(5);
-
-  const startTime = mainMinutes * 60 + mainSeconds;
-  const cooldownTime = cooldownMinutes * 60 + cooldownSeconds;
+  const [startTime, setStartTime] = useState(30);
+  const [cooldownTime, setCooldownTime] = useState(5);
 
   const [time, setTime] = useState(30);
   const [progress, setProgress] = useState(100);
@@ -39,16 +34,6 @@ function App() {
       return defaultPresets;
     }
   });
-
-  const minuteOptions = useMemo(
-    () => Array.from({ length: 60 }, (_, i) => i),
-    []
-  );
-
-  const secondOptions = useMemo(
-    () => Array.from({ length: 60 }, (_, i) => i),
-    []
-  );
 
   const startAtRef = useRef(null);
   const animationRef = useRef(null);
@@ -173,11 +158,8 @@ function App() {
 
   const applyMainTime = (newTime) => {
     const safeTime = Math.max(1, Number(newTime) || 1);
-    const minutes = Math.floor(safeTime / 60);
-    const seconds = safeTime % 60;
 
-    setMainMinutes(minutes);
-    setMainSeconds(seconds);
+    setStartTime(safeTime);
     setIsCooldown(false);
     setTime(safeTime);
     setProgress(100);
@@ -185,21 +167,14 @@ function App() {
     setRemainingPrecise(safeTime);
   };
 
-  const handleMainWheelChange = (minutes, seconds) => {
-    const newTime = minutes * 60 + seconds;
-
-    setMainMinutes(minutes);
-    setMainSeconds(seconds);
-    setIsCooldown(false);
-    setTime(newTime);
-    setProgress(100);
-    setRemainingOnPause(newTime);
-    setRemainingPrecise(newTime);
+  const changeMainTime = (delta) => {
+    const next = Math.max(1, startTime + delta);
+    applyMainTime(next);
   };
 
-  const handleCooldownWheelChange = (minutes, seconds) => {
-    setCooldownMinutes(minutes);
-    setCooldownSeconds(seconds);
+  const changeCooldownTime = (delta) => {
+    const next = Math.max(0, cooldownTime + delta);
+    setCooldownTime(next);
   };
 
   const addPreset = () => {
@@ -557,61 +532,56 @@ function App() {
             font-weight: bold;
           }
 
-          .wheel-panel {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 190px;
-            gap: 10px;
-          }
-
-          .wheel-block {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 5px;
-          }
-
-          .wheel-label {
-            font-size: 12px;
-            color: #aaa;
-            letter-spacing: 1px;
-          }
-
-          .wheel-row {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-          }
-
-          .wheel-select {
-            width: 54px;
-            height: 38px;
-            font-size: 20px;
-            font-weight: bold;
-            text-align: center;
-            text-align-last: center;
-            border: none;
-            border-radius: 10px;
-            background-color: #111;
-            color: white;
-            outline: none;
-            appearance: none;
-            -webkit-appearance: none;
-            box-shadow: inset 0 0 0 1px #333;
-          }
-
-          .wheel-colon {
-            font-size: 22px;
-            font-weight: bold;
-            color: white;
-            margin: 0 1px;
-          }
-
           .controls-panel {
             display: flex;
             flex-direction: column;
             align-items: center;
+          }
+
+          .adjust-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 16px;
+            width: 300px;
+            max-width: 92vw;
+          }
+
+          .adjust-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+          }
+
+          .adjust-label {
+            width: 44px;
+            text-align: right;
+            font-size: 13px;
+            color: #aaa;
+          }
+
+          .adjust-time {
+            width: 72px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+          }
+
+          .adjust-button {
+            min-width: 38px;
+            height: 34px;
+            border: none;
+            border-radius: 999px;
+            background-color: #333;
+            color: white;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+          }
+
+          .adjust-button.big {
+            background-color: #444;
           }
 
           .preset-list {
@@ -743,23 +713,21 @@ function App() {
               font-size: 52px;
             }
 
-            .wheel-panel {
-              width: 170px;
+            .adjust-panel {
+              width: 280px;
+              margin-bottom: 10px;
               gap: 7px;
             }
 
-            .wheel-label {
-              font-size: 10px;
+            .adjust-button {
+              min-width: 34px;
+              height: 30px;
+              font-size: 13px;
             }
 
-            .wheel-select {
-              width: 48px;
-              height: 32px;
-              font-size: 17px;
-            }
-
-            .wheel-colon {
-              font-size: 18px;
+            .adjust-time {
+              width: 68px;
+              font-size: 16px;
             }
 
             .preset-list {
@@ -868,149 +836,139 @@ function App() {
             }}
           >
             <div className="timer-inner">
-              {showSettings ? (
-                <div className="wheel-panel">
-                  <div className="wheel-block">
-                    <div className="wheel-label">時間</div>
-                    <div className="wheel-row">
-                      <select
-                        className="wheel-select"
-                        value={mainMinutes}
-                        onChange={(e) => {
-                          handleMainWheelChange(
-                            Number(e.target.value),
-                            mainSeconds
-                          );
-                        }}
-                      >
-                        {minuteOptions.map((num) => (
-                          <option key={`main-min-${num}`} value={num}>
-                            {String(num).padStart(2, "0")}
-                          </option>
-                        ))}
-                      </select>
-
-                      <div className="wheel-colon">:</div>
-
-                      <select
-                        className="wheel-select"
-                        value={mainSeconds}
-                        onChange={(e) => {
-                          handleMainWheelChange(
-                            mainMinutes,
-                            Number(e.target.value)
-                          );
-                        }}
-                      >
-                        {secondOptions.map((num) => (
-                          <option key={`main-sec-${num}`} value={num}>
-                            {String(num).padStart(2, "0")}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="wheel-block">
-                    <div className="wheel-label">休憩</div>
-                    <div className="wheel-row">
-                      <select
-                        className="wheel-select"
-                        value={cooldownMinutes}
-                        onChange={(e) => {
-                          handleCooldownWheelChange(
-                            Number(e.target.value),
-                            cooldownSeconds
-                          );
-                        }}
-                      >
-                        {minuteOptions.map((num) => (
-                          <option key={`cool-min-${num}`} value={num}>
-                            {String(num).padStart(2, "0")}
-                          </option>
-                        ))}
-                      </select>
-
-                      <div className="wheel-colon">:</div>
-
-                      <select
-                        className="wheel-select"
-                        value={cooldownSeconds}
-                        onChange={(e) => {
-                          handleCooldownWheelChange(
-                            cooldownMinutes,
-                            Number(e.target.value)
-                          );
-                        }}
-                      >
-                        {secondOptions.map((num) => (
-                          <option key={`cool-sec-${num}`} value={num}>
-                            {String(num).padStart(2, "0")}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div
-                  className="timer-text"
-                  style={{
-                    color: isCooldown
-                      ? "#3b82f6"
-                      : hasValidStartTime && time <= 5
-                      ? "red"
-                      : "white",
-                  }}
-                >
-                  {formatTime(time)}
-                </div>
-              )}
+              <div
+                className="timer-text"
+                style={{
+                  color: isCooldown
+                    ? "#3b82f6"
+                    : hasValidStartTime && time <= 5
+                    ? "red"
+                    : "white",
+                }}
+              >
+                {formatTime(showSettings ? startTime : time)}
+              </div>
             </div>
           </div>
 
           <div className="controls-panel">
             {showSettings && (
-              <div className="preset-list">
-                {presets.map((preset, index) => {
-                  const selected = startTime === preset.seconds;
+              <>
+                <div className="adjust-panel">
+                  <div className="adjust-row">
+                    <div className="adjust-label">時間</div>
 
-                  return (
                     <button
-                      key={`${preset.name}-${index}`}
-                      className={`preset-card ${
-                        selected ? "selected" : "normal"
-                      }`}
-                      disabled={running}
-                      onClick={() => {
-                        if (longPressTriggeredRef.current) {
-                          longPressTriggeredRef.current = false;
-                          return;
-                        }
-
-                        applyMainTime(preset.seconds);
-                      }}
-                      onTouchStart={() => startPresetLongPress(preset, index)}
-                      onTouchEnd={endPresetLongPress}
-                      onTouchCancel={endPresetLongPress}
-                      onMouseDown={() => startPresetLongPress(preset, index)}
-                      onMouseUp={endPresetLongPress}
-                      onMouseLeave={endPresetLongPress}
+                      className="adjust-button big"
+                      onClick={() => changeMainTime(-10)}
                     >
-                      <div className="preset-name">{preset.name}</div>
-                      <div className="preset-seconds">{preset.seconds}秒</div>
+                      －－
                     </button>
-                  );
-                })}
 
-                <button
-                  className="preset-add"
-                  disabled={running || !hasValidStartTime}
-                  onClick={addPreset}
-                >
-                  ＋
-                </button>
-              </div>
+                    <button
+                      className="adjust-button"
+                      onClick={() => changeMainTime(-1)}
+                    >
+                      －
+                    </button>
+
+                    <div className="adjust-time">{formatTime(startTime)}</div>
+
+                    <button
+                      className="adjust-button"
+                      onClick={() => changeMainTime(1)}
+                    >
+                      ＋
+                    </button>
+
+                    <button
+                      className="adjust-button big"
+                      onClick={() => changeMainTime(10)}
+                    >
+                      ＋＋
+                    </button>
+                  </div>
+
+                  <div className="adjust-row">
+                    <div className="adjust-label">休憩</div>
+
+                    <button
+                      className="adjust-button big"
+                      onClick={() => changeCooldownTime(-10)}
+                    >
+                      －－
+                    </button>
+
+                    <button
+                      className="adjust-button"
+                      onClick={() => changeCooldownTime(-1)}
+                    >
+                      －
+                    </button>
+
+                    <div className="adjust-time">
+                      {formatTime(cooldownTime)}
+                    </div>
+
+                    <button
+                      className="adjust-button"
+                      onClick={() => changeCooldownTime(1)}
+                    >
+                      ＋
+                    </button>
+
+                    <button
+                      className="adjust-button big"
+                      onClick={() => changeCooldownTime(10)}
+                    >
+                      ＋＋
+                    </button>
+                  </div>
+                </div>
+
+                <div className="preset-list">
+                  {presets.map((preset, index) => {
+                    const selected = startTime === preset.seconds;
+
+                    return (
+                      <button
+                        key={`${preset.name}-${index}`}
+                        className={`preset-card ${
+                          selected ? "selected" : "normal"
+                        }`}
+                        disabled={running}
+                        onClick={() => {
+                          if (longPressTriggeredRef.current) {
+                            longPressTriggeredRef.current = false;
+                            return;
+                          }
+
+                          applyMainTime(preset.seconds);
+                        }}
+                        onTouchStart={() => startPresetLongPress(preset, index)}
+                        onTouchEnd={endPresetLongPress}
+                        onTouchCancel={endPresetLongPress}
+                        onMouseDown={() => startPresetLongPress(preset, index)}
+                        onMouseUp={endPresetLongPress}
+                        onMouseLeave={endPresetLongPress}
+                      >
+                        <div className="preset-name">{preset.name}</div>
+                        <div className="preset-seconds">
+                          {preset.seconds}秒
+                        </div>
+                      </button>
+                    );
+                  })}
+
+                  <button
+                    className="preset-add"
+                    disabled={running || !hasValidStartTime}
+                    onClick={addPreset}
+                  >
+                    ＋
+                  </button>
+                </div>
+              </>
             )}
 
             <div className="toggle-row">
