@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const defaultPresets = [
   { name: "英単語", seconds: 7 },
@@ -7,10 +7,13 @@ const defaultPresets = [
 ];
 
 function App() {
-  const [startTime, setStartTime] = useState(30);
-  const [startTimeInput, setStartTimeInput] = useState("30");
-  const [cooldownTime, setCooldownTime] = useState(5);
-  const [cooldownTimeInput, setCooldownTimeInput] = useState("5");
+  const [mainMinutes, setMainMinutes] = useState(0);
+  const [mainSeconds, setMainSeconds] = useState(30);
+  const [cooldownMinutes, setCooldownMinutes] = useState(0);
+  const [cooldownSeconds, setCooldownSeconds] = useState(5);
+
+  const startTime = mainMinutes * 60 + mainSeconds;
+  const cooldownTime = cooldownMinutes * 60 + cooldownSeconds;
 
   const [time, setTime] = useState(30);
   const [progress, setProgress] = useState(100);
@@ -37,6 +40,16 @@ function App() {
     }
   });
 
+  const minuteOptions = useMemo(
+    () => Array.from({ length: 60 }, (_, i) => i),
+    []
+  );
+
+  const secondOptions = useMemo(
+    () => Array.from({ length: 60 }, (_, i) => i),
+    []
+  );
+
   const startAtRef = useRef(null);
   const animationRef = useRef(null);
   const lastBeepSecondRef = useRef(null);
@@ -50,7 +63,7 @@ function App() {
   const calmBeepRef = useRef(null);
   const tensionBeepRef = useRef(null);
 
-  const hasValidStartTime = startTimeInput !== "" && startTime > 0;
+  const hasValidStartTime = startTime > 0;
 
   const isPaused =
     !running && hasValidStartTime && remainingPrecise > 0 && time !== startTime;
@@ -151,7 +164,7 @@ function App() {
   };
 
   const formatTime = (seconds) => {
-    const safeSeconds = Math.max(0, Number(seconds) || 0);
+    const safeSeconds = Math.max(0, Math.ceil(Number(seconds) || 0));
     const min = Math.floor(safeSeconds / 60);
     const sec = safeSeconds % 60;
 
@@ -159,13 +172,34 @@ function App() {
   };
 
   const applyMainTime = (newTime) => {
-    setStartTime(newTime);
-    setStartTimeInput(String(newTime));
+    const safeTime = Math.max(1, Number(newTime) || 1);
+    const minutes = Math.floor(safeTime / 60);
+    const seconds = safeTime % 60;
+
+    setMainMinutes(minutes);
+    setMainSeconds(seconds);
+    setIsCooldown(false);
+    setTime(safeTime);
+    setProgress(100);
+    setRemainingOnPause(safeTime);
+    setRemainingPrecise(safeTime);
+  };
+
+  const handleMainWheelChange = (minutes, seconds) => {
+    const newTime = minutes * 60 + seconds;
+
+    setMainMinutes(minutes);
+    setMainSeconds(seconds);
     setIsCooldown(false);
     setTime(newTime);
     setProgress(100);
     setRemainingOnPause(newTime);
     setRemainingPrecise(newTime);
+  };
+
+  const handleCooldownWheelChange = (minutes, seconds) => {
+    setCooldownMinutes(minutes);
+    setCooldownSeconds(seconds);
   };
 
   const addPreset = () => {
@@ -178,7 +212,7 @@ function App() {
   const savePreset = () => {
     const name = newPresetName.trim();
 
-    if (!name) return;
+    if (!name || !hasValidStartTime) return;
 
     setPresets((prev) => [
       ...prev,
@@ -523,28 +557,61 @@ function App() {
             font-weight: bold;
           }
 
+          .wheel-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 190px;
+            gap: 10px;
+          }
+
+          .wheel-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+          }
+
+          .wheel-label {
+            font-size: 12px;
+            color: #aaa;
+            letter-spacing: 1px;
+          }
+
+          .wheel-row {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+          }
+
+          .wheel-select {
+            width: 54px;
+            height: 38px;
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+            text-align-last: center;
+            border: none;
+            border-radius: 10px;
+            background-color: #111;
+            color: white;
+            outline: none;
+            appearance: none;
+            -webkit-appearance: none;
+            box-shadow: inset 0 0 0 1px #333;
+          }
+
+          .wheel-colon {
+            font-size: 22px;
+            font-weight: bold;
+            color: white;
+            margin: 0 1px;
+          }
+
           .controls-panel {
             display: flex;
             flex-direction: column;
             align-items: center;
-          }
-
-          .time-inputs {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 12px;
-          }
-
-          .input-block {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-          }
-
-          .input-label {
-            font-size: 10px;
-            color: #aaa;
           }
 
           .preset-list {
@@ -676,13 +743,23 @@ function App() {
               font-size: 52px;
             }
 
-            .controls-panel input {
-              font-size: 16px !important;
-              padding: 6px !important;
+            .wheel-panel {
+              width: 170px;
+              gap: 7px;
             }
 
-            .time-inputs {
-              margin-bottom: 10px !important;
+            .wheel-label {
+              font-size: 10px;
+            }
+
+            .wheel-select {
+              width: 48px;
+              height: 32px;
+              font-size: 17px;
+            }
+
+            .wheel-colon {
+              font-size: 18px;
             }
 
             .preset-list {
@@ -791,146 +868,149 @@ function App() {
             }}
           >
             <div className="timer-inner">
-              <div
-                className="timer-text"
-                style={{
-                  color: isCooldown
-                    ? "#3b82f6"
-                    : hasValidStartTime && time <= 5
-                    ? "red"
-                    : "white",
-                }}
-              >
-                {formatTime(time)}
-              </div>
+              {showSettings ? (
+                <div className="wheel-panel">
+                  <div className="wheel-block">
+                    <div className="wheel-label">時間</div>
+                    <div className="wheel-row">
+                      <select
+                        className="wheel-select"
+                        value={mainMinutes}
+                        onChange={(e) => {
+                          handleMainWheelChange(
+                            Number(e.target.value),
+                            mainSeconds
+                          );
+                        }}
+                      >
+                        {minuteOptions.map((num) => (
+                          <option key={`main-min-${num}`} value={num}>
+                            {String(num).padStart(2, "0")}
+                          </option>
+                        ))}
+                      </select>
+
+                      <div className="wheel-colon">:</div>
+
+                      <select
+                        className="wheel-select"
+                        value={mainSeconds}
+                        onChange={(e) => {
+                          handleMainWheelChange(
+                            mainMinutes,
+                            Number(e.target.value)
+                          );
+                        }}
+                      >
+                        {secondOptions.map((num) => (
+                          <option key={`main-sec-${num}`} value={num}>
+                            {String(num).padStart(2, "0")}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="wheel-block">
+                    <div className="wheel-label">休憩</div>
+                    <div className="wheel-row">
+                      <select
+                        className="wheel-select"
+                        value={cooldownMinutes}
+                        onChange={(e) => {
+                          handleCooldownWheelChange(
+                            Number(e.target.value),
+                            cooldownSeconds
+                          );
+                        }}
+                      >
+                        {minuteOptions.map((num) => (
+                          <option key={`cool-min-${num}`} value={num}>
+                            {String(num).padStart(2, "0")}
+                          </option>
+                        ))}
+                      </select>
+
+                      <div className="wheel-colon">:</div>
+
+                      <select
+                        className="wheel-select"
+                        value={cooldownSeconds}
+                        onChange={(e) => {
+                          handleCooldownWheelChange(
+                            cooldownMinutes,
+                            Number(e.target.value)
+                          );
+                        }}
+                      >
+                        {secondOptions.map((num) => (
+                          <option key={`cool-sec-${num}`} value={num}>
+                            {String(num).padStart(2, "0")}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className="timer-text"
+                  style={{
+                    color: isCooldown
+                      ? "#3b82f6"
+                      : hasValidStartTime && time <= 5
+                      ? "red"
+                      : "white",
+                  }}
+                >
+                  {formatTime(time)}
+                </div>
+              )}
             </div>
           </div>
 
           <div className="controls-panel">
             {showSettings && (
-              <>
-                <div className="time-inputs">
-                  <div className="input-block">
-                    <div className="input-label">時間</div>
-                    <input
-                      type="number"
-                      min="1"
-                      max="999"
-                      value={startTimeInput}
-                      disabled={running}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setStartTimeInput(value);
+              <div className="preset-list">
+                {presets.map((preset, index) => {
+                  const selected = startTime === preset.seconds;
 
-                        if (value === "") {
-                          setStartTime(0);
-                          setTime(0);
-                          setProgress(100);
-                          setRemainingOnPause(0);
-                          setRemainingPrecise(0);
-                          setIsCooldown(false);
+                  return (
+                    <button
+                      key={`${preset.name}-${index}`}
+                      className={`preset-card ${
+                        selected ? "selected" : "normal"
+                      }`}
+                      disabled={running}
+                      onClick={() => {
+                        if (longPressTriggeredRef.current) {
+                          longPressTriggeredRef.current = false;
                           return;
                         }
 
-                        const newTime = Number(value);
-
-                        if (newTime < 1) return;
-
-                        applyMainTime(newTime);
+                        applyMainTime(preset.seconds);
                       }}
-                      style={{
-                        fontSize: "16px",
-                        padding: "6px",
-                        borderRadius: "10px",
-                        width: "64px",
-                        textAlign: "center",
-                        backgroundColor: "white",
-                        color: "black",
-                        border: "none",
-                      }}
-                    />
-                  </div>
+                      onTouchStart={() => startPresetLongPress(preset, index)}
+                      onTouchEnd={endPresetLongPress}
+                      onTouchCancel={endPresetLongPress}
+                      onMouseDown={() => startPresetLongPress(preset, index)}
+                      onMouseUp={endPresetLongPress}
+                      onMouseLeave={endPresetLongPress}
+                    >
+                      <div className="preset-name">{preset.name}</div>
+                      <div className="preset-seconds">{preset.seconds}秒</div>
+                    </button>
+                  );
+                })}
 
-                  <div className="input-block">
-                    <div className="input-label">休憩</div>
-                    <input
-                      type="number"
-                      min="0"
-                      max="999"
-                      value={cooldownTimeInput}
-                      disabled={running}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setCooldownTimeInput(value);
-
-                        if (value === "") {
-                          setCooldownTime(0);
-                          return;
-                        }
-
-                        const newTime = Number(value);
-
-                        if (newTime < 0) return;
-
-                        setCooldownTime(newTime);
-                      }}
-                      style={{
-                        fontSize: "16px",
-                        padding: "6px",
-                        borderRadius: "10px",
-                        width: "64px",
-                        textAlign: "center",
-                        backgroundColor: "white",
-                        color: "black",
-                        border: "none",
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div className="preset-list">
-                  {presets.map((preset, index) => {
-                    const selected = startTime === preset.seconds;
-
-                    return (
-                      <button
-                        key={`${preset.name}-${index}`}
-                        className={`preset-card ${
-                          selected ? "selected" : "normal"
-                        }`}
-                        disabled={running}
-                        onClick={() => {
-                          if (longPressTriggeredRef.current) {
-                            longPressTriggeredRef.current = false;
-                            return;
-                          }
-
-                          applyMainTime(preset.seconds);
-                        }}
-                        onTouchStart={() => startPresetLongPress(preset, index)}
-                        onTouchEnd={endPresetLongPress}
-                        onTouchCancel={endPresetLongPress}
-                        onMouseDown={() => startPresetLongPress(preset, index)}
-                        onMouseUp={endPresetLongPress}
-                        onMouseLeave={endPresetLongPress}
-                      >
-                        <div className="preset-name">{preset.name}</div>
-                        <div className="preset-seconds">
-                          {preset.seconds}秒
-                        </div>
-                      </button>
-                    );
-                  })}
-
-                  <button
-                    className="preset-add"
-                    disabled={running || !hasValidStartTime}
-                    onClick={addPreset}
-                  >
-                    ＋
-                  </button>
-                </div>
-              </>
+                <button
+                  className="preset-add"
+                  disabled={running || !hasValidStartTime}
+                  onClick={addPreset}
+                >
+                  ＋
+                </button>
+              </div>
             )}
 
             <div className="toggle-row">
