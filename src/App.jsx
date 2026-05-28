@@ -1005,25 +1005,26 @@ function App() {
                     onClick={async () => {
                       if (!hasValidStartTime) return;
 
-                      await unlockAudio();
+                      await prepareAudioContext();
+startSound();
 
-                      const currentDuration = isCooldown
-                        ? cooldownTime
-                        : startTime;
+const currentDuration = isCooldown
+  ? cooldownTime
+  : startTime;
 
-                      const isFreshStart =
-                        remainingPrecise <= 0 ||
-                        remainingPrecise >= currentDuration;
+const isFreshStart =
+  remainingPrecise <= 0 ||
+  remainingPrecise >= currentDuration;
 
-                      if (isFreshStart) {
-                        setRemainingOnPause(currentDuration);
-                        setTime(currentDuration);
-                      } else {
-                        setRemainingOnPause(remainingPrecise);
-                      }
+if (isFreshStart) {
+  setRemainingOnPause(currentDuration);
+  setTime(currentDuration);
+} else {
+  setRemainingOnPause(remainingPrecise);
+}
 
-                      startSound();
-                      setRunning(true);
+setRunning(true);
+requestWakeLock();
                       requestWakeLock();
                     }}
                     style={{
