@@ -11,6 +11,10 @@ function App() {
   const [cooldownTime, setCooldownTime] = useState(5);
   const [cooldownOn, setCooldownOn] = useState(false);
 
+  const [targetOn, setTargetOn] = useState(false);
+  const [targetQuestions, setTargetQuestions] = useState(10);
+  const [completed, setCompleted] = useState(false);
+
   const [time, setTime] = useState(30);
   const [progress, setProgress] = useState(100);
   const [question, setQuestion] = useState(1);
@@ -57,7 +61,11 @@ function App() {
   const hasValidStartTime = startTime > 0;
 
   const isPaused =
-    !running && hasValidStartTime && remainingPrecise > 0 && time !== startTime;
+    !running &&
+    hasValidStartTime &&
+    remainingPrecise > 0 &&
+    time !== startTime &&
+    !completed;
 
   const showSettings = !running && !isPaused && !isCooldown;
 
@@ -166,6 +174,7 @@ function App() {
     const safeTime = Math.max(1, Number(newTime) || 1);
 
     setStartTime(safeTime);
+    setCompleted(false);
     setIsCooldown(false);
     setTime(safeTime);
     setProgress(100);
@@ -177,6 +186,7 @@ function App() {
     setStartTime((prev) => {
       const next = Math.max(1, prev + delta);
 
+      setCompleted(false);
       setIsCooldown(false);
       setTime(next);
       setProgress(100);
@@ -189,6 +199,11 @@ function App() {
 
   const changeCooldownTime = (delta) => {
     setCooldownTime((prev) => Math.max(1, prev + delta));
+  };
+
+  const changeTargetQuestions = (delta) => {
+    setTargetQuestions((prev) => Math.max(1, prev + delta));
+    setCompleted(false);
   };
 
   const startHoldChange = (callback) => {
@@ -374,7 +389,25 @@ function App() {
         } else {
           startSound();
 
-          setQuestion((q) => q + 1);
+          let shouldComplete = false;
+
+          setQuestion((q) => {
+            if (targetOn && q >= targetQuestions) {
+              shouldComplete = true;
+              return q;
+            }
+
+            return q + 1;
+          });
+
+          if (shouldComplete) {
+            setRunning(false);
+            setCompleted(true);
+            setIsCooldown(false);
+            releaseWakeLock();
+            return;
+          }
+
           setIsCooldown(false);
           setRemainingOnPause(startTime);
           setRemainingPrecise(startTime);
@@ -397,6 +430,8 @@ function App() {
     startTime,
     cooldownTime,
     cooldownOn,
+    targetOn,
+    targetQuestions,
     remainingOnPause,
     isCooldown,
     hasValidStartTime,
@@ -418,6 +453,7 @@ function App() {
 
   const resetTimer = () => {
     setRunning(false);
+    setCompleted(false);
     setIsCooldown(false);
     setTime(startTime);
     setProgress(100);
@@ -473,20 +509,6 @@ function App() {
             }
           }
 
-          @keyframes pulse {
-            0% {
-              transform: scale(1);
-            }
-
-            50% {
-              transform: scale(1.015);
-            }
-
-            100% {
-              transform: scale(1);
-            }
-          }
-
           @keyframes finishGlow {
             0% {
               box-shadow: 0 0 0px rgba(34, 197, 94, 0);
@@ -524,10 +546,6 @@ function App() {
                 0 0 18px rgba(34, 197, 94, 0.45),
                 0 0 36px rgba(34, 197, 94, 0.2);
             }
-          }
-
-          .danger-ring {
-            animation: pulse 1s infinite;
           }
 
           .finish-glow {
@@ -614,6 +632,16 @@ function App() {
             white-space: nowrap;
           }
 
+          .target-preview {
+            position: absolute;
+            top: 18%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 13px;
+            color: #777;
+            white-space: nowrap;
+          }
+
           .controls-panel {
             display: flex;
             flex-direction: column;
@@ -674,6 +702,13 @@ function App() {
             user-select: none;
             -webkit-touch-callout: none;
             touch-action: manipulation;
+          }
+
+          .target-count {
+            width: 34px;
+            text-align: center;
+            font-size: 17px;
+            font-weight: bold;
           }
 
           .preset-list {
@@ -819,6 +854,11 @@ function App() {
               font-size: 13px;
             }
 
+            .target-preview {
+              top: 17%;
+              font-size: 12px;
+            }
+
             .adjust-panel {
               width: 250px;
               margin-bottom: 10px;
@@ -903,28 +943,25 @@ function App() {
 
       <div className={`app-root ${flash ? "flash" : ""}`}>
         <h1
-          key={isCooldown ? "cooldown" : question}
+          key={completed ? "complete" : isCooldown ? "cooldown" : question}
           className="question-title"
           style={{
             fontSize: "40px",
             animation: "pop 0.4s ease",
-            color: isCooldown ? "#3b82f6" : "white",
-            textShadow: isCooldown
+            color: completed ? "#22c55e" : isCooldown ? "#3b82f6" : "white",
+            textShadow: completed
+              ? "0 0 18px rgba(34,197,94,0.9)"
+              : isCooldown
               ? "0 0 18px rgba(59,130,246,0.9)"
               : "none",
           }}
         >
-          {isCooldown ? "休憩" : `Q ${question}`}
+          {completed ? "COMPLETE" : isCooldown ? "休憩" : `Q ${question}`}
         </h1>
 
         <div className="main-layout">
           <div
             className={`timer-circle
-              ${
-                !isCooldown && hasValidStartTime && time <= 5
-                  ? "danger-ring"
-                  : ""
-              }
               ${finishFlash ? "finish-glow" : ""}
               ${isCooldown ? "cooldown-glow" : ""}
             `}
@@ -943,6 +980,10 @@ function App() {
             }}
           >
             <div className="timer-inner">
+              {showSettings && targetOn && (
+                <div className="target-preview">目標 {targetQuestions}</div>
+              )}
+
               <div
                 className="timer-text main-time-center"
                 style={{
@@ -967,8 +1008,6 @@ function App() {
               <>
                 <div className="adjust-panel">
                   <div className="adjust-row">
-                   
-
                     <button
                       className="adjust-button"
                       onClick={() => handleAdjustClick(() => changeMainTime(-1))}
@@ -1046,6 +1085,58 @@ function App() {
                       </>
                     )}
                   </div>
+
+                  <div className="adjust-row">
+                    <button
+                      className={`adjust-label-button ${
+                        targetOn ? "on" : "off"
+                      }`}
+                      onClick={() => {
+                        setTargetOn((v) => !v);
+                        setCompleted(false);
+                      }}
+                    >
+                      目標
+                    </button>
+
+                    {targetOn && (
+                      <>
+                        <button
+                          className="adjust-button"
+                          onClick={() =>
+                            handleAdjustClick(() => changeTargetQuestions(-1))
+                          }
+                          onPointerDown={(e) => {
+                            e.preventDefault();
+                            startHoldChange(() => changeTargetQuestions(-10));
+                          }}
+                          onPointerUp={stopHoldChange}
+                          onPointerLeave={stopHoldChange}
+                          onPointerCancel={stopHoldChange}
+                        >
+                          －
+                        </button>
+
+                        <div className="target-count">{targetQuestions}</div>
+
+                        <button
+                          className="adjust-button"
+                          onClick={() =>
+                            handleAdjustClick(() => changeTargetQuestions(1))
+                          }
+                          onPointerDown={(e) => {
+                            e.preventDefault();
+                            startHoldChange(() => changeTargetQuestions(10));
+                          }}
+                          onPointerUp={stopHoldChange}
+                          onPointerLeave={stopHoldChange}
+                          onPointerCancel={stopHoldChange}
+                        >
+                          ＋
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 <div className="preset-list">
@@ -1104,29 +1195,22 @@ function App() {
                 {soundOn ? "🔊 ON" : "🔇 OFF"}
               </button>
 
-                {soundOn && (
-              <button
-                className="sound-button"
-                disabled={!soundOn}
-                onClick={() => {
-                  if (!soundOn) return;
-
-                  setSoundTheme((prev) =>
-                    prev === "calm" ? "tension" : "calm"
-                  );
-                }}
-                style={{
-                  backgroundColor: !soundOn
-                    ? "#555"
-                    : soundTheme === "calm"
-                    ? "#3b82f6"
-                    : "#ef4444",
-                  opacity: soundOn ? 1 : 0.5,
-                  cursor: soundOn ? "pointer" : "not-allowed",
-                }}
-              >
-                {soundTheme === "calm" ? "🌙 Calm" : "⚡ Tension"}
-              </button>)}
+              {soundOn && (
+                <button
+                  className="sound-button"
+                  onClick={() => {
+                    setSoundTheme((prev) =>
+                      prev === "calm" ? "tension" : "calm"
+                    );
+                  }}
+                  style={{
+                    backgroundColor:
+                      soundTheme === "calm" ? "#3b82f6" : "#ef4444",
+                  }}
+                >
+                  {soundTheme === "calm" ? "🌙 Calm" : "⚡ Tension"}
+                </button>
+              )}
             </div>
 
             {!isPaused && (
@@ -1168,6 +1252,7 @@ function App() {
                     onClick={async () => {
                       if (!hasValidStartTime) return;
 
+                      setCompleted(false);
                       await prepareAudioContext();
                       preloadBeepAudio();
 
@@ -1177,7 +1262,8 @@ function App() {
 
                       const isFreshStart =
                         remainingPrecise <= 0 ||
-                        remainingPrecise >= currentDuration;
+                        remainingPrecise >= currentDuration ||
+                        completed;
 
                       if (isFreshStart) {
                         setRemainingOnPause(currentDuration);
