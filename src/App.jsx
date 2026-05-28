@@ -58,8 +58,12 @@ function App() {
   const showSettings = !running && !isPaused && !isCooldown;
 
   const prepareAudioContext = async () => {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+
+    if (!AudioContextClass) return;
+
     if (!audioContextRef.current) {
-      audioContextRef.current = new AudioContext();
+      audioContextRef.current = new AudioContextClass();
     }
 
     if (audioContextRef.current.state === "suspended") {
@@ -71,6 +75,8 @@ function App() {
     if (!soundOnRef.current) return;
 
     await prepareAudioContext();
+
+    if (!audioContextRef.current) return;
 
     const audioContext = audioContextRef.current;
     const oscillator = audioContext.createOscillator();
@@ -93,14 +99,14 @@ function App() {
   };
 
   const startSound = async () => {
-  if (!soundOnRef.current) return;
+    if (!soundOnRef.current) return;
 
-  if (soundThemeRef.current === "tension") {
-    await playInstantTone(1200, 0.12, 0.35);
-  } else {
-    await playInstantTone(700, 0.15, 0.3);
-  }
-};
+    if (soundThemeRef.current === "tension") {
+      await playInstantTone(1200, 0.12, 0.35);
+    } else {
+      await playInstantTone(700, 0.15, 0.3);
+    }
+  };
 
   const playPreparedAudio = (audio, volume = 1) => {
     if (!audio || !soundOnRef.current) return;
@@ -127,9 +133,7 @@ function App() {
     playPreparedAudio(audio, 0.75);
   };
 
-  const unlockAudio = async () => {
-    await prepareAudioContext();
-
+  const preloadBeepAudio = () => {
     const audios = [calmBeepRef.current, tensionBeepRef.current];
 
     audios.forEach((audio) => {
@@ -997,7 +1001,7 @@ function App() {
                         pressedButton === "stop" ? "scale(0.95)" : "scale(1)",
                     }}
                   >
-                    ⏸ STOP
+                    STOP
                   </button>
                 ) : (
                   <button
@@ -1006,25 +1010,25 @@ function App() {
                       if (!hasValidStartTime) return;
 
                       await prepareAudioContext();
-startSound();
+                      preloadBeepAudio();
 
-const currentDuration = isCooldown
-  ? cooldownTime
-  : startTime;
+                      const currentDuration = isCooldown
+                        ? cooldownTime
+                        : startTime;
 
-const isFreshStart =
-  remainingPrecise <= 0 ||
-  remainingPrecise >= currentDuration;
+                      const isFreshStart =
+                        remainingPrecise <= 0 ||
+                        remainingPrecise >= currentDuration;
 
-if (isFreshStart) {
-  setRemainingOnPause(currentDuration);
-  setTime(currentDuration);
-} else {
-  setRemainingOnPause(remainingPrecise);
-}
+                      if (isFreshStart) {
+                        setRemainingOnPause(currentDuration);
+                        setTime(currentDuration);
+                      } else {
+                        setRemainingOnPause(remainingPrecise);
+                      }
 
-setRunning(true);
-requestWakeLock();
+                      await startSound();
+                      setRunning(true);
                       requestWakeLock();
                     }}
                     style={{
