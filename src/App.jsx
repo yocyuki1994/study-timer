@@ -198,7 +198,6 @@ function App() {
 
     holdChangeTimeoutRef.current = setTimeout(() => {
       holdChangeTriggeredRef.current = true;
-
       callback();
 
       holdChangeIntervalRef.current = setInterval(() => {
@@ -588,11 +587,31 @@ function App() {
             display: flex;
             justify-content: center;
             align-items: center;
+            position: relative;
+            overflow: hidden;
           }
 
           .timer-text {
             font-size: 58px;
             font-weight: bold;
+          }
+
+          .main-time-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            white-space: nowrap;
+          }
+
+          .cooldown-preview {
+            position: absolute;
+            top: 68%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 15px;
+            color: #888;
+            white-space: nowrap;
           }
 
           .controls-panel {
@@ -639,16 +658,6 @@ function App() {
 
           .adjust-label-button.on {
             background-color: #22c55e;
-          }
-
-          .adjust-time {
-            width: 76px;
-            text-align: center;
-            font-size: 18px;
-            font-weight: bold;
-            -webkit-user-select: none;
-            user-select: none;
-            -webkit-touch-callout: none;
           }
 
           .adjust-button {
@@ -805,6 +814,11 @@ function App() {
               font-size: 52px;
             }
 
+            .cooldown-preview {
+              top: 69%;
+              font-size: 13px;
+            }
+
             .adjust-panel {
               width: 250px;
               margin-bottom: 10px;
@@ -821,11 +835,6 @@ function App() {
               min-width: 58px;
               height: 30px;
               font-size: 12px;
-            }
-
-            .adjust-time {
-              width: 70px;
-              font-size: 16px;
             }
 
             .preset-list {
@@ -905,7 +914,7 @@ function App() {
               : "none",
           }}
         >
-          {isCooldown ? "休憩" : `問題 ${question}`}
+          {isCooldown ? "休憩" : `Q ${question}`}
         </h1>
 
         <div className="main-layout">
@@ -935,7 +944,7 @@ function App() {
           >
             <div className="timer-inner">
               <div
-                className="timer-text"
+                className="timer-text main-time-center"
                 style={{
                   color: isCooldown
                     ? "#3b82f6"
@@ -946,6 +955,10 @@ function App() {
               >
                 {formatTime(showSettings ? startTime : time)}
               </div>
+
+              {showSettings && cooldownOn && (
+                <div className="cooldown-preview">{formatTime(cooldownTime)}</div>
+              )}
             </div>
           </div>
 
@@ -969,8 +982,6 @@ function App() {
                     >
                       －
                     </button>
-
-                    <div className="adjust-time">{formatTime(startTime)}</div>
 
                     <button
                       className="adjust-button"
@@ -1016,10 +1027,6 @@ function App() {
                         >
                           －
                         </button>
-
-                        <div className="adjust-time">
-                          {formatTime(cooldownTime)}
-                        </div>
 
                         <button
                           className="adjust-button"
