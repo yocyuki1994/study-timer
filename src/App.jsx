@@ -967,7 +967,7 @@ function App() {
               <>
                 <div className="adjust-panel">
                   <div className="adjust-row">
-                    <button className="adjust-label-button on">時間</button>
+                   
 
                     <button
                       className="adjust-button"
