@@ -50,6 +50,7 @@ function App() {
   const audioContextRef = useRef(null);
   const calmBeepRef = useRef(null);
   const tensionBeepRef = useRef(null);
+  const holdChangeTriggeredRef = useRef(false);
 
   const hasValidStartTime = startTime > 0;
 
@@ -171,26 +172,38 @@ function App() {
   };
 
   const changeMainTime = (delta) => {
-    const next = Math.max(1, startTime + delta);
-    applyMainTime(next);
-  };
+  setStartTime((prev) => {
+    const next = Math.max(1, prev + delta);
+
+    setIsCooldown(false);
+    setTime(next);
+    setProgress(100);
+    setRemainingOnPause(next);
+    setRemainingPrecise(next);
+
+    return next;
+  });
+};
 
   const changeCooldownTime = (delta) => {
-    const next = Math.max(1, cooldownTime + delta);
-    setCooldownTime(next);
-  };
+  setCooldownTime((prev) => Math.max(1, prev + delta));
+};
 
   const startHoldChange = (callback) => {
-    stopHoldChange();
+  stopHoldChange();
 
-    holdChangeTimeoutRef.current = setTimeout(() => {
+  holdChangeTriggeredRef.current = false;
+
+  holdChangeTimeoutRef.current = setTimeout(() => {
+    holdChangeTriggeredRef.current = true;
+
+    callback();
+
+    holdChangeIntervalRef.current = setInterval(() => {
       callback();
-
-      holdChangeIntervalRef.current = setInterval(() => {
-        callback();
-      }, 160);
-    }, 450);
-  };
+    }, 160);
+  }, 450);
+};
 
   const stopHoldChange = () => {
     if (holdChangeTimeoutRef.current) {
@@ -933,7 +946,14 @@ function App() {
 
                     <button
                       className="adjust-button"
-                      onClick={() => changeMainTime(-1)}
+                      onClick={() => {
+  if (holdChangeTriggeredRef.current) {
+    holdChangeTriggeredRef.current = false;
+    return;
+  }
+
+  changeMainTime(-1);
+}}
                       onMouseDown={() =>
                         startHoldChange(() => changeMainTime(-10))
                       }
@@ -953,7 +973,14 @@ function App() {
 
                     <button
                       className="adjust-button"
-                      onClick={() => changeMainTime(1)}
+                      onClick={() => {
+  if (holdChangeTriggeredRef.current) {
+    holdChangeTriggeredRef.current = false;
+    return;
+  }
+
+  changeMainTime(1);
+}}
                       onMouseDown={() =>
                         startHoldChange(() => changeMainTime(10))
                       }
@@ -986,7 +1013,14 @@ function App() {
                       <>
                         <button
                           className="adjust-button"
-                          onClick={() => changeCooldownTime(-1)}
+                          onClick={() => {
+  if (holdChangeTriggeredRef.current) {
+    holdChangeTriggeredRef.current = false;
+    return;
+  }
+
+  changeMainTime(-1);
+}}
                           onMouseDown={() =>
                             startHoldChange(() => changeCooldownTime(-10))
                           }
@@ -1008,7 +1042,14 @@ function App() {
 
                         <button
                           className="adjust-button"
-                          onClick={() => changeCooldownTime(1)}
+                          onClick={() => {
+  if (holdChangeTriggeredRef.current) {
+    holdChangeTriggeredRef.current = false;
+    return;
+  }
+
+  changeMainTime(1);
+}}
                           onMouseDown={() =>
                             startHoldChange(() => changeCooldownTime(10))
                           }
