@@ -309,16 +309,23 @@ function App() {
   ]);
 
   useEffect(() => {
-    if (!isCooldown && hasValidStartTime && time <= 5 && time > 0) {
-      setFlash(true);
+  if (
+    !isCooldown &&
+    hasValidStartTime &&
+    time <= 5 &&
+    time > 0
+  ) {
+    setFlash(true);
 
-      const timeout = setTimeout(() => {
-        setFlash(false);
-      }, 150);
+    const timeout = setTimeout(() => {
+      setFlash(false);
+    }, 150);
 
-      return () => clearTimeout(timeout);
-    }
-  }, [time, isCooldown, hasValidStartTime]);
+    return () => clearTimeout(timeout);
+  } else {
+    setFlash(false);
+  }
+}, [time, isCooldown, hasValidStartTime]);
 
   const resetTimer = () => {
     setRunning(false);
