@@ -1,18 +1,36 @@
 import { useEffect, useRef, useState } from "react";
 
 const defaultPresets = [
-  { name: "英単語", seconds: 7 },
-  { name: "標準", seconds: 30 },
-  { name: "じっくり", seconds: 90 },
-];
-
-function App() {
-import { useEffect, useRef, useState } from "react";
-
-const defaultPresets = [
-  { name: "英単語", seconds: 7 },
-  { name: "標準", seconds: 30 },
-  { name: "じっくり", seconds: 90 },
+  {
+    name: "英単語",
+    seconds: 7,
+    cooldownOn: false,
+    cooldownTime: 5,
+    targetOn: false,
+    targetQuestions: 10,
+    soundOn: true,
+    soundTheme: "calm",
+  },
+  {
+    name: "標準",
+    seconds: 30,
+    cooldownOn: false,
+    cooldownTime: 5,
+    targetOn: false,
+    targetQuestions: 10,
+    soundOn: true,
+    soundTheme: "calm",
+  },
+  {
+    name: "じっくり",
+    seconds: 90,
+    cooldownOn: false,
+    cooldownTime: 5,
+    targetOn: false,
+    targetQuestions: 10,
+    soundOn: true,
+    soundTheme: "calm",
+  },
 ];
 
 const getSavedNumber = (key, fallback) => {
@@ -73,10 +91,22 @@ function App() {
   const [showPresetModal, setShowPresetModal] = useState(false);
   const [newPresetName, setNewPresetName] = useState("");
 
+  const normalizePreset = (preset) => ({
+    name: preset.name,
+    seconds: Number(preset.seconds) || 30,
+    cooldownOn: Boolean(preset.cooldownOn),
+    cooldownTime: Number(preset.cooldownTime) || 5,
+    targetOn: Boolean(preset.targetOn),
+    targetQuestions: Number(preset.targetQuestions) || 10,
+    soundOn: preset.soundOn === undefined ? true : Boolean(preset.soundOn),
+    soundTheme: preset.soundTheme === "tension" ? "tension" : "calm",
+  });
+
   const [presets, setPresets] = useState(() => {
     try {
       const saved = localStorage.getItem("qTimerPresets");
-      return saved ? JSON.parse(saved) : defaultPresets;
+      const parsed = saved ? JSON.parse(saved) : defaultPresets;
+      return parsed.map(normalizePreset);
     } catch {
       return defaultPresets;
     }
@@ -113,6 +143,7 @@ function App() {
 
   const prepareAudioContext = async () => {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+
     if (!AudioContextClass) return;
 
     if (!audioContextRef.current) {
@@ -128,6 +159,7 @@ function App() {
     if (!soundOnRef.current) return;
 
     await prepareAudioContext();
+
     if (!audioContextRef.current) return;
 
     const audioContext = audioContextRef.current;
@@ -168,6 +200,7 @@ function App() {
     audio.volume = volume;
 
     const playPromise = audio.play();
+
     if (playPromise) {
       playPromise.catch(() => {});
     }
@@ -220,6 +253,31 @@ function App() {
     setProgress(100);
     setRemainingOnPause(safeTime);
     setRemainingPrecise(safeTime);
+  };
+
+  const applyPreset = (preset) => {
+    const safePreset = normalizePreset(preset);
+    const safeTime = Math.max(1, safePreset.seconds);
+
+    setStartTime(safeTime);
+    setCooldownOn(safePreset.cooldownOn);
+    setCooldownTime(safePreset.cooldownTime);
+    setTargetOn(safePreset.targetOn);
+    setTargetQuestions(safePreset.targetQuestions);
+    setSoundOn(safePreset.soundOn);
+    setSoundTheme(safePreset.soundTheme);
+
+    setRunning(false);
+    setCompleted(false);
+    setCompletedQuestions(0);
+    setIsCooldown(false);
+    setQuestion(1);
+    setTime(safeTime);
+    setProgress(100);
+    setRemainingOnPause(safeTime);
+    setRemainingPrecise(safeTime);
+    setFlash(false);
+    releaseWakeLock();
   };
 
   const changeMainTime = (delta) => {
@@ -301,6 +359,12 @@ function App() {
       {
         name,
         seconds: startTime,
+        cooldownOn,
+        cooldownTime,
+        targetOn,
+        targetQuestions,
+        soundOn,
+        soundTheme,
       },
     ]);
 
@@ -515,29 +579,6 @@ function App() {
       setFlash(false);
     }
   }, [time, isCooldown, hasValidStartTime]);
-
-  const resetTimer = () => {
-    setRunning(false);
-    setCompleted(false);
-    setCompletedQuestions(0);
-    setIsCooldown(false);
-    setTime(startTime);
-    setProgress(100);
-    setQuestion(1);
-    setRemainingOnPause(startTime);
-    setRemainingPrecise(startTime);
-    setFlash(false);
-    releaseWakeLock();
-  };
-
-  return (
-    <>
-      {/* ここから下は今の表示部分と同じなので、そのまま今の return 内を使ってOK */}
-    </>
-  );
-}
-
-export default App;
 
   const resetTimer = () => {
     setRunning(false);
@@ -1244,7 +1285,7 @@ export default App;
                         </button>
                       </div>
 
-                       <div className="fixed-control-row">
+                      <div className="fixed-control-row">
                         <div className="side-slot">
                           {targetOn && (
                             <button
@@ -1281,6 +1322,7 @@ export default App;
                         >
                           目標
                         </button>
+
                         <div className="side-slot">
                           {targetOn && (
                             <button
@@ -1366,17 +1408,23 @@ export default App;
                           )}
                         </div>
                       </div>
-
-                     
                     </div>
 
                     <div className="preset-list">
                       {presets.map((preset, index) => {
-                        const selected = startTime === preset.seconds;
+                        const safePreset = normalizePreset(preset);
+                        const selected =
+                          startTime === safePreset.seconds &&
+                          cooldownOn === safePreset.cooldownOn &&
+                          cooldownTime === safePreset.cooldownTime &&
+                          targetOn === safePreset.targetOn &&
+                          targetQuestions === safePreset.targetQuestions &&
+                          soundOn === safePreset.soundOn &&
+                          soundTheme === safePreset.soundTheme;
 
                         return (
                           <button
-                            key={`${preset.name}-${index}`}
+                            key={`${safePreset.name}-${index}`}
                             className={`preset-card ${
                               selected ? "selected" : "normal"
                             }`}
@@ -1387,18 +1435,18 @@ export default App;
                                 return;
                               }
 
-                              applyMainTime(preset.seconds);
+                              applyPreset(safePreset);
                             }}
                             onPointerDown={() =>
-                              startPresetLongPress(preset, index)
+                              startPresetLongPress(safePreset, index)
                             }
                             onPointerUp={endPresetLongPress}
                             onPointerLeave={endPresetLongPress}
                             onPointerCancel={endPresetLongPress}
                           >
-                            <div className="preset-name">{preset.name}</div>
+                            <div className="preset-name">{safePreset.name}</div>
                             <div className="preset-seconds">
-                              {preset.seconds}秒
+                              {safePreset.seconds}秒
                             </div>
                           </button>
                         );
