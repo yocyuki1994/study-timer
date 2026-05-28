@@ -42,15 +42,17 @@ function App() {
   const soundOnRef = useRef(soundOn);
   const soundThemeRef = useRef(soundTheme);
   const wakeLockRef = useRef(null);
-  const holdTimerRef = useRef(null);
-  const longPressTriggeredRef = useRef(false);
+
+  const presetHoldTimerRef = useRef(null);
+  const presetLongPressTriggeredRef = useRef(false);
+
   const holdChangeTimeoutRef = useRef(null);
   const holdChangeIntervalRef = useRef(null);
+  const holdChangeTriggeredRef = useRef(false);
 
   const audioContextRef = useRef(null);
   const calmBeepRef = useRef(null);
   const tensionBeepRef = useRef(null);
-  const holdChangeTriggeredRef = useRef(false);
 
   const hasValidStartTime = startTime > 0;
 
@@ -172,38 +174,38 @@ function App() {
   };
 
   const changeMainTime = (delta) => {
-  setStartTime((prev) => {
-    const next = Math.max(1, prev + delta);
+    setStartTime((prev) => {
+      const next = Math.max(1, prev + delta);
 
-    setIsCooldown(false);
-    setTime(next);
-    setProgress(100);
-    setRemainingOnPause(next);
-    setRemainingPrecise(next);
+      setIsCooldown(false);
+      setTime(next);
+      setProgress(100);
+      setRemainingOnPause(next);
+      setRemainingPrecise(next);
 
-    return next;
-  });
-};
+      return next;
+    });
+  };
 
   const changeCooldownTime = (delta) => {
-  setCooldownTime((prev) => Math.max(1, prev + delta));
-};
+    setCooldownTime((prev) => Math.max(1, prev + delta));
+  };
 
   const startHoldChange = (callback) => {
-  stopHoldChange();
+    stopHoldChange();
 
-  holdChangeTriggeredRef.current = false;
+    holdChangeTriggeredRef.current = false;
 
-  holdChangeTimeoutRef.current = setTimeout(() => {
-    holdChangeTriggeredRef.current = true;
+    holdChangeTimeoutRef.current = setTimeout(() => {
+      holdChangeTriggeredRef.current = true;
 
-    callback();
-
-    holdChangeIntervalRef.current = setInterval(() => {
       callback();
-    }, 160);
-  }, 450);
-};
+
+      holdChangeIntervalRef.current = setInterval(() => {
+        callback();
+      }, 160);
+    }, 450);
+  };
 
   const stopHoldChange = () => {
     if (holdChangeTimeoutRef.current) {
@@ -215,6 +217,15 @@ function App() {
       clearInterval(holdChangeIntervalRef.current);
       holdChangeIntervalRef.current = null;
     }
+  };
+
+  const handleAdjustClick = (callback) => {
+    if (holdChangeTriggeredRef.current) {
+      holdChangeTriggeredRef.current = false;
+      return;
+    }
+
+    callback();
   };
 
   const addPreset = () => {
@@ -247,10 +258,10 @@ function App() {
   const startPresetLongPress = (preset, index) => {
     if (running) return;
 
-    longPressTriggeredRef.current = false;
+    presetLongPressTriggeredRef.current = false;
 
-    holdTimerRef.current = setTimeout(() => {
-      longPressTriggeredRef.current = true;
+    presetHoldTimerRef.current = setTimeout(() => {
+      presetLongPressTriggeredRef.current = true;
 
       const ok = confirm(`${preset.name} を削除しますか？`);
 
@@ -261,9 +272,9 @@ function App() {
   };
 
   const endPresetLongPress = () => {
-    if (holdTimerRef.current) {
-      clearTimeout(holdTimerRef.current);
-      holdTimerRef.current = null;
+    if (presetHoldTimerRef.current) {
+      clearTimeout(presetHoldTimerRef.current);
+      presetHoldTimerRef.current = null;
     }
   };
 
@@ -311,6 +322,7 @@ function App() {
     return () => {
       releaseWakeLock();
       stopHoldChange();
+      endPresetLongPress();
     };
   }, []);
 
@@ -946,25 +958,14 @@ function App() {
 
                     <button
                       className="adjust-button"
-                      onClick={() => {
-  if (holdChangeTriggeredRef.current) {
-    holdChangeTriggeredRef.current = false;
-    return;
-  }
-
-  changeMainTime(-1);
-}}
-                      onMouseDown={() =>
-                        startHoldChange(() => changeMainTime(-10))
-                      }
-                      onMouseUp={stopHoldChange}
-                      onMouseLeave={stopHoldChange}
-                      onTouchStart={(e) => {
+                      onClick={() => handleAdjustClick(() => changeMainTime(-1))}
+                      onPointerDown={(e) => {
                         e.preventDefault();
                         startHoldChange(() => changeMainTime(-10));
                       }}
-                      onTouchEnd={stopHoldChange}
-                      onTouchCancel={stopHoldChange}
+                      onPointerUp={stopHoldChange}
+                      onPointerLeave={stopHoldChange}
+                      onPointerCancel={stopHoldChange}
                     >
                       －
                     </button>
@@ -973,25 +974,14 @@ function App() {
 
                     <button
                       className="adjust-button"
-                      onClick={() => {
-  if (holdChangeTriggeredRef.current) {
-    holdChangeTriggeredRef.current = false;
-    return;
-  }
-
-  changeMainTime(1);
-}}
-                      onMouseDown={() =>
-                        startHoldChange(() => changeMainTime(10))
-                      }
-                      onMouseUp={stopHoldChange}
-                      onMouseLeave={stopHoldChange}
-                      onTouchStart={(e) => {
+                      onClick={() => handleAdjustClick(() => changeMainTime(1))}
+                      onPointerDown={(e) => {
                         e.preventDefault();
                         startHoldChange(() => changeMainTime(10));
                       }}
-                      onTouchEnd={stopHoldChange}
-                      onTouchCancel={stopHoldChange}
+                      onPointerUp={stopHoldChange}
+                      onPointerLeave={stopHoldChange}
+                      onPointerCancel={stopHoldChange}
                     >
                       ＋
                     </button>
@@ -1013,25 +1003,16 @@ function App() {
                       <>
                         <button
                           className="adjust-button"
-                          onClick={() => {
-  if (holdChangeTriggeredRef.current) {
-    holdChangeTriggeredRef.current = false;
-    return;
-  }
-
-  changeMainTime(-1);
-}}
-                          onMouseDown={() =>
-                            startHoldChange(() => changeCooldownTime(-10))
+                          onClick={() =>
+                            handleAdjustClick(() => changeCooldownTime(-1))
                           }
-                          onMouseUp={stopHoldChange}
-                          onMouseLeave={stopHoldChange}
-                          onTouchStart={(e) => {
+                          onPointerDown={(e) => {
                             e.preventDefault();
                             startHoldChange(() => changeCooldownTime(-10));
                           }}
-                          onTouchEnd={stopHoldChange}
-                          onTouchCancel={stopHoldChange}
+                          onPointerUp={stopHoldChange}
+                          onPointerLeave={stopHoldChange}
+                          onPointerCancel={stopHoldChange}
                         >
                           －
                         </button>
@@ -1042,25 +1023,16 @@ function App() {
 
                         <button
                           className="adjust-button"
-                          onClick={() => {
-  if (holdChangeTriggeredRef.current) {
-    holdChangeTriggeredRef.current = false;
-    return;
-  }
-
-  changeMainTime(1);
-}}
-                          onMouseDown={() =>
-                            startHoldChange(() => changeCooldownTime(10))
+                          onClick={() =>
+                            handleAdjustClick(() => changeCooldownTime(1))
                           }
-                          onMouseUp={stopHoldChange}
-                          onMouseLeave={stopHoldChange}
-                          onTouchStart={(e) => {
+                          onPointerDown={(e) => {
                             e.preventDefault();
                             startHoldChange(() => changeCooldownTime(10));
                           }}
-                          onTouchEnd={stopHoldChange}
-                          onTouchCancel={stopHoldChange}
+                          onPointerUp={stopHoldChange}
+                          onPointerLeave={stopHoldChange}
+                          onPointerCancel={stopHoldChange}
                         >
                           ＋
                         </button>
@@ -1081,19 +1053,17 @@ function App() {
                         }`}
                         disabled={running}
                         onClick={() => {
-                          if (longPressTriggeredRef.current) {
-                            longPressTriggeredRef.current = false;
+                          if (presetLongPressTriggeredRef.current) {
+                            presetLongPressTriggeredRef.current = false;
                             return;
                           }
 
                           applyMainTime(preset.seconds);
                         }}
-                        onTouchStart={() => startPresetLongPress(preset, index)}
-                        onTouchEnd={endPresetLongPress}
-                        onTouchCancel={endPresetLongPress}
-                        onMouseDown={() => startPresetLongPress(preset, index)}
-                        onMouseUp={endPresetLongPress}
-                        onMouseLeave={endPresetLongPress}
+                        onPointerDown={() => startPresetLongPress(preset, index)}
+                        onPointerUp={endPresetLongPress}
+                        onPointerLeave={endPresetLongPress}
+                        onPointerCancel={endPresetLongPress}
                       >
                         <div className="preset-name">{preset.name}</div>
                         <div className="preset-seconds">
